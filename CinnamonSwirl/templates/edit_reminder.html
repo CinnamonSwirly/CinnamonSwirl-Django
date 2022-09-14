@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+{% load crispy_forms_tags %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Edit a Reminder</title>
+</head>
+<body>
+    {% crispy ReminderForm ReminderForm.helper %}
+    {% crispy DeleteConfirmationForm DeleteConfirmationForm.helper %}
+    {{ message }}
+</body>
+</html>
