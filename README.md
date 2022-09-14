@@ -11,9 +11,11 @@ may be missing a lot of features some would consider mandatory. It is provided a
 * MariaDB or MySQL
 * Python 3.10
 * The following python libraries:
-  * django_filters
-  * crispy_forms
-  * django_tables2
+  * django-filter
+  * django-crispy-forms
+  * django-tables2
+  * django-bootstrap3
+  * django-debug-toolbar
 * A registered Discord application. Can be the same as the one you use for the Discord bot.
 
 ### Setup
