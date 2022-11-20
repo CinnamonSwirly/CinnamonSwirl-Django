@@ -85,17 +85,29 @@ WSGI_APPLICATION = 'App.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.1/ref/settings/#databases
 
-DATABASES = {
-    # MYSQL/MARIADB
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.getenv("MYSQL_DATABASE", "reminders"),
-        'USER': os.getenv("MYSQL_USERNAME"),
-        'PASSWORD': os.getenv("MYSQL_PASSWORD"),
-        'HOST': os.getenv("MYSQL_HOST"),
-        'PORT': os.getenv("MYSQL_PORT"),
+DATABASE_OPTIONS = {
+    "DEBUG": {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    },
+    "SANDBOX": {
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': os.getenv("MYSQL_DATABASE", "reminders"),
+            'USER': os.getenv("MYSQL_USERNAME"),
+            'PASSWORD': os.getenv("MYSQL_PASSWORD"),
+            'HOST': os.getenv("MYSQL_HOST"),
+            'PORT': os.getenv("MYSQL_PORT"),
+        }
     }
 }
+
+if os.getenv("MYSQL_HOST", None) is None:
+    DATABASES = DATABASE_OPTIONS["DEBUG"]
+else:
+    DATABASES = DATABASE_OPTIONS["SANDBOX"]
 
 # Password validation
 # https://docs.djangoproject.com/en/4.1/ref/settings/#auth-password-validators
