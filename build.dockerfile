@@ -15,7 +15,7 @@ RUN pip install --upgrade pip && \
 ARG URL
 RUN git clone --branch master $URL
 
-WORKDIR /cinnamonswirl-django
+RUN ls
 
 RUN python3 manage.py makemigrations
 RUN python3 manage.py migrate
