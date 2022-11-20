@@ -13,7 +13,7 @@ RUN pip install --upgrade pip && \
 	pip install django-bootstrap3
 
 ARG URL
-RUN git clone --branch main $URL
+RUN git clone --branch master $URL
 
 WORKDIR /cinnamonswirl-django
 
