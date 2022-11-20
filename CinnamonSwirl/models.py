@@ -11,7 +11,7 @@ class DiscordUser(models.Model):
     id = models.BigIntegerField(primary_key=True)  # Most important one. We use this to see which Reminders they own.
     username = models.CharField(max_length=50)  # Useful for showing the user their name without the ID.
     # Attributes from this point on are unused.
-    avatar = models.CharField(max_length=100)
+    avatar = models.CharField(max_length=100, null=True)
     public_flags = models.IntegerField()
     flags = models.IntegerField()
     locale = models.CharField(max_length=50)
