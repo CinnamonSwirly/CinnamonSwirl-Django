@@ -11,7 +11,8 @@ RUN pip install --upgrade pip && \
 	pip install django-debug-toolbar==3.7.0 && \
 	pip install django-filter==22.1 && \
 	pip install django-bootstrap3==22.1 && \
-	pip install mysqlclient==2.1.1
+	pip install mysqlclient==2.1.1 && \
+	pip install requests
 
 ARG URL
 RUN git clone --branch master $URL
