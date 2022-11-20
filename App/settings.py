@@ -11,24 +11,22 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 """
 
 from pathlib import Path
-from configparser import ConfigParser
+import os
+from django.core.management.utils import get_random_secret_key
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
-configuration = ConfigParser()
-configuration.read(f"{BASE_DIR}\\config.cfg")
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = configuration["DJANGO"]["key"]
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", get_random_secret_key())
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DEBUG", "False") == "True"
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
 
 AUTHENTICATION_BACKENDS = [
     'CinnamonSwirl.auth.DiscordAuthenticationBackend'
@@ -63,7 +61,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'DjangoLearning.urls'
+ROOT_URLCONF = 'App.urls'
 
 TEMPLATES = [
     {
@@ -81,7 +79,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'DjangoLearning.wsgi.application'
+WSGI_APPLICATION = 'App.wsgi.application'
 
 
 # Database
@@ -91,11 +89,11 @@ DATABASES = {
     # MYSQL/MARIADB
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'CinnamonSwirl',
-        'USER': configuration["DATABASE"]["username"],
-        'PASSWORD': configuration["DATABASE"]["password"],
-        'HOST': configuration["DATABASE"]["host"],
-        'PORT': configuration["DATABASE"]["port"],
+        'NAME': os.getenv("MYSQL_DATABASE", "reminders"),
+        'USER': os.getenv("MYSQL_USERNAME"),
+        'PASSWORD': os.getenv("MYSQL_PASSWORD"),
+        'HOST': os.getenv("MYSQL_HOST"),
+        'PORT': os.getenv("MYSQL_PORT"),
     }
 }
 
@@ -117,6 +115,26 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'WARNING',
+    },
+    'loggers': {
+        'nplusone': {
+            'handlers': ['console'],
+            'level': 'WARN',
+            'propagate': False,
+        },
+    }
+}
 
 # Internationalization
 # https://docs.djangoproject.com/en/4.1/topics/i18n/
@@ -151,3 +169,8 @@ CRISPY_TEMPLATE_PACK = 'bootstrap'
 
 SESSION_COOKIE_AGE = 600000
 
+DISCORD_AUTH_URL = os.getenv("DISCORD_CLIENT_ID")
+
+DISCORD_CLIENT_ID = os.getenv("DISCORD_CLIENT_ID")
+DISCORD_CLIENT_SECRET = os.getenv("DISCORD_CLIENT_SECRET")
+DISCORD_REDIRECT_URI = os.getenv("DISCORD_CLIENT_SECRET")

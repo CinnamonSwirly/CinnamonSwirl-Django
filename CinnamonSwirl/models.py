@@ -1,34 +1,7 @@
 from django.db import models
 from django.urls import reverse
 from .managers import DiscordUserOAuth2Manager
-
-
-# Create your models here.
-class Reminder(models.Model):
-    """
-    Reminders are created either on this web app, an API connection or a bot on a messaging platform.
-    We at least need to know the time, message, recipient, timezone and completed.
-    If routine is True, all other fields besides objects will be required.
-    """
-    time = models.DateTimeField()  # When the reminder should trigger
-    message = models.CharField(max_length=1024)  # What the reminder should say
-    recipient = models.BigIntegerField()  # Who should get the reminder (Discord User ID)
-    completed = models.BooleanField()  # Has the reminder been sent?
-    routine = models.BooleanField()  # Does the reminder reoccur on a schedule?
-    start_date = models.DateTimeField(null=True)  # When do the reoccurrences start?
-    routine_days = models.IntegerField(null=True)  # On what days does the reminder trigger?
-    routine_amount = models.IntegerField(null=True)  # The reminder reoccurs X Y (3 days or 19 weeks, etc) This is X.
-    routine_unit = models.CharField(max_length=20, null=True)  # This is Y from the routine_amount comment.
-    end_date = models.DateTimeField(null=True)  # When should the reminder stop reoccurring?
-    timezone = models.CharField(max_length=100, default="US/Central")  # In what timezone should all datetimes be read?
-    objects = models.Manager()  # Internal django use. Used to get, save, update, etc Reminders.
-
-    def get_absolute_url(self):
-        """
-        Useful for getting a URL that allows you to edit or view each object. In this case, it's edit.
-        :return: URL
-        """
-        return reverse("edit_reminder") + f"?id={self.pk}"
+from django.utils.timezone import now
 
 
 class DiscordUser(models.Model):
@@ -50,3 +23,39 @@ class DiscordUser(models.Model):
     @staticmethod
     def is_authenticated():
         return True  # See django docs on authentication
+
+
+class Reminder(models.Model):
+    """
+    Reminders are created either on this web app, an API connection or a bot on a messaging platform.
+    We at least need to know the time, message, recipient, timezone and completed.
+    If routine is True, all other fields besides objects will be required.
+    """
+    # YEARLY, MONTHLY, WEEKLY, DAILY, HOURLY, MINUTELY, SECONDLY
+    freq = models.CharField(max_length=10, default="MINUTELY")
+    message = models.CharField(max_length=1024, default="Reminder")
+    recipient = models.BigIntegerField(default=0)  # Discord ID to send to
+    finished = models.BooleanField(default=False)
+    interval = models.IntegerField(default=1)  # How many of freq between recurrences
+    dtstart = models.DateTimeField(default=now)
+    wkst = models.IntegerField(null=True)
+    count = models.IntegerField(null=True)
+    until = models.DateTimeField(null=True)
+    bysetpos = models.CharField(max_length=100, null=True)
+    bymonth = models.CharField(max_length=100, null=True)
+    bymonthday = models.CharField(max_length=100, null=True)
+    byyearday = models.CharField(max_length=100, null=True)
+    byweekno = models.CharField(max_length=100, null=True)
+    byweekday = models.CharField(max_length=100, null=True)
+    byhour = models.CharField(max_length=100, null=True)
+    byminute = models.CharField(max_length=100, null=True)
+    bysecond = models.CharField(max_length=100, null=True)
+    timezone = models.CharField(max_length=100, default="US/Central")  # In what timezone should all datetimes be read?
+    objects = models.Manager()  # Internal django use. Used to get, save, update, etc Reminders.
+
+    def get_absolute_url(self):
+        """
+        Useful for getting a URL that allows you to edit or view each object. In this case, it's edit.
+        :return: URL
+        """
+        return reverse("edit_reminder") + f"?id={self.pk}"

@@ -12,7 +12,7 @@ class RemindersTable(django_tables2.Table):
     # is not currently supported. When I tried, it would only return the last (or greatest) ID number from what you
     # selected. It would easily work for a single item selection, but the checkboxes give the impression of being able
     # to select multiple rows. It would be a UI/UX nightmare to use.
-    # TODO: Re-visit for front-end, Emi the magician claims we can get around this
+    # TODO: Re-visit for front-end
     edit = django_tables2.Column(accessor="pk", linkify=True, verbose_name="Edit")
 
     class Meta:

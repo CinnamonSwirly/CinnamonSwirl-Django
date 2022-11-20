@@ -19,13 +19,15 @@ from CinnamonSwirl import forms
 from CinnamonSwirl import models
 from CinnamonSwirl import tables
 
+from App import settings
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 configuration = ConfigParser()
 configuration.read(f"{BASE_DIR}\\config.cfg")
 
 # Provided by Discord's OAuth2 URL Generator in your application's OAuth2 settings. Note the scope must be changed if
 #  further permissions are desired.
-auth_url = configuration["DISCORD"]["auth_url"]
+auth_url = settings.DISCORD_AUTH_URL
 
 
 @login_required(login_url="oauth/discord_login")
@@ -37,7 +39,7 @@ def list_reminders(request):
     :param request: No requirements.
     :return: HTTPResponse
     """
-    filtered_data = filters.RemindersFilter(request=request.GET, queryset=models.Reminder.objects.all())
+    filtered_data = filters.RemindersFilter(request=request, queryset=models.Reminder.objects.all())
     # Actual results of the filter is found as filtered_data.qs, not .data as that dumps the raw input of the filter.
     table = tables.RemindersTable(data=filtered_data.qs, empty_text="You currently have no reminders!")
     return render(request, 'get_reminders.html', {'table': table, 'CreateButtonForm': forms.CreateButtonForm})
@@ -51,12 +53,12 @@ def create_reminder(request):
     :param request: GET has no requirements. POST must have relevant attributes for a reminder. See models.
     :return: HTTPResponse
     """
-    reminder = None
     message = ''
 
     if request.method == 'POST':
         try:
-            reminder = parse_reminder(request=request)
+            parse_reminder(request=request)
+            return redirect("get_reminders")
         except ValueError:
             message = 'One or more values were not understood. Please try again.'
         except AssertionError:
@@ -65,8 +67,6 @@ def create_reminder(request):
             message = "One or more dates or times were invalid. Please check your input and try again."
 
         request.session['timezone'] = request.POST.get('timezone')
-    if reminder:
-        return redirect("get_reminders")
 
     form = forms.ReminderForm(request=request)
     return render(request, 'create_reminder.html', {'ReminderForm': form, 'message': message})
@@ -96,10 +96,8 @@ def edit_reminder(request):
 
     if request.method == 'POST':
         try:
-            kwargs = parse_reminder_update(request)
-            if kwargs:
-                models.Reminder.objects.filter(pk=reminder_id, recipient=request.user.id).update(**kwargs)
-                return redirect("get_reminders")
+            parse_reminder(request)
+            return redirect("get_reminders")
         except AssertionError:
             message = "One or more required fields was empty. Please try your edit again."
         except ValueError:
@@ -173,11 +171,11 @@ def exchange_code(code: str):
     :return: JSON back from Discord's OAuth2 endpoint
     """
     data = {
-        'client_id': configuration["DISCORD"]["client_id"],
-        'client_secret': configuration["DISCORD"]["client_secret"],
+        'client_id': settings.DISCORD_CLIENT_ID,
+        'client_secret': settings.DISCORD_CLIENT_SECRET,
         'grant_type': 'authorization_code',
         'code': code,
-        'redirect_uri': 'http://127.0.0.1:9000/CinnamonSwirl/oauth/redirect',
+        'redirect_uri': settings.DISCORD_REDIRECT_URI,
         'scope': 'identify'
     }
 
@@ -194,7 +192,7 @@ def exchange_code(code: str):
     return response.json()
 
 
-def parse_reminder(request: HttpRequest) -> models.Reminder:
+def parse_reminder(request) -> bool:
     """
     Attempts to format the request attributes from create_reminder's form so they can be understood by the Reminder
     model manager.
@@ -205,56 +203,50 @@ def parse_reminder(request: HttpRequest) -> models.Reminder:
     """
     required_fields = ["timezone", "startDate", "startTime", "message", "timezone"]
     for field in required_fields:
-        if not request.POST.get(field):
-            raise AssertionError
+        assert request.POST.get(field)
 
     timezone = request.POST.get('timezone')
 
-    try:
-        start_datetime = time_to_utc(date=request.POST.get('startDate'), time=request.POST.get('startTime'),
-                                     timezone=timezone)
-    except ValueError:
-        raise
+    start_datetime = time_to_utc(date=request.POST.get('startDate'), time=request.POST.get('startTime'),
+                                 timezone=timezone)
+
+    kwargs = {"dtstart": start_datetime, "timezone": timezone, "message": request.POST.get('message'),
+              "recipient": request.POST.get('recipient'), "finished": False, "count": request.POST.get('count')}
 
     if request.POST.get('routine'):
-        required_fields = ["schedule_date", "schedule_time", "schedule_days", "schedule_end", "schedule_interval",
-                           "schedule_units"]
-        for field in required_fields:
-            if not request.POST.get(field):
-                raise AssertionError
+        if request.POST.get('schedule_end_date'):
+            assert request.POST.get('schedule_end_time')
 
-        try:
-            schedule_datetime = time_to_utc(date=request.POST.get('schedule_date'),
-                                            time=request.POST.get('schedule_time'), timezone=timezone)
-            end_date = time_to_utc(date=request.POST.get('schedule_end'), time='00:00', timezone=timezone)
-        except ValueError:
-            raise
+            schedule_end_datetime = time_to_utc(date=request.POST.get('schedule_end_date'),
+                                                time=request.POST.get('schedule_end_time'), timezone=timezone)
+            # Count and Until cannot coexist in datetime.rrule. We will prioritize until over count.
+            kwargs.update({"until": schedule_end_datetime, "count": None})
 
-        schedule_days = int(request.POST.get('schedule_days'))
-        routine = True
+        # For the next two blocks, we want to turn a list of strings into a string. [1, 2, 3] is the goal.
+        if request.POST.get('schedule_days'):
+            days = []
+            for day in request.POST.getlist('schedule_days'):
+                days.append(int(day))
+            kwargs.update({"byweekday": str(days)})
 
-        kwargs = {"time": start_datetime, "message": request.POST.get('message'),
-                  "recipient": request.POST.get('recipient'), "routine": routine, "completed": False,
-                  "timezone": timezone, "start_date": schedule_datetime,
-                  "routine_amount": request.POST.get('schedule_interval'),
-                  "routine_unit": request.POST.get('schedule_units'), "routine_days": schedule_days,
-                  "end_date": end_date}
+        if request.POST.get('schedule_hours'):
+            hours = []
+            offset = int(datetime.utcnow().astimezone(ZoneInfo(timezone)).strftime('%z')[:3])
+            for hour in request.POST.getlist('schedule_hours'):
+                hours.append(int(hour) - offset)
+            kwargs.update({"byhour": str(hours)})
+
+        kwargs.update({"interval": request.POST.get('schedule_interval'), "freq": request.POST.get('schedule_units')})
     else:
-        routine = False
+        # This is how we will present a one-time reminder to dateutil.rrule
+        kwargs.update({"freq": "MINUTELY", "interval": 1})
 
-        kwargs = {"time": start_datetime, "message": request.POST.get('message'),
-                  "recipient": request.POST.get('recipient'), "routine": routine, "completed": False,
-                  "timezone": timezone}
-
-    try:
-        reminder = models.Reminder(**kwargs)
-    except ValidationError:
-        raise
-    # Failure to call the save method for the reminder object will cause the form to "complete" but no reminder will be
-    #  saved to the DB.
-    reminder.save()
-
-    return reminder
+    if request.POST.get('reminder_id'):
+        models.Reminder.objects.filter(pk=request.POST.get('reminder_id'), recipient=request.user.id).update(**kwargs)
+        return True
+    else:
+        models.Reminder.objects.create(**kwargs)
+        return True
 
 
 def time_to_utc(date: str, time: str, timezone: str) -> datetime:

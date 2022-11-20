@@ -1,6 +1,6 @@
 from django import forms
 from crispy_forms.helper import FormHelper
-from crispy_forms.layout import Submit, Layout, Field
+from crispy_forms.layout import Submit, Layout, Field, Fieldset
 from django.urls import reverse
 from datetime import datetime
 from typing import Tuple, Union
@@ -13,27 +13,28 @@ class ReminderForm(forms.Form):
     When editing, a models.Reminder object must be passed to it, so it can read those values and apply them to the
     form's fields. Will either POST to create_reminder or edit_reminder depending on if a Reminder is supplied.
     """
-    startDate = forms.DateTimeField(required=True, label="Start Date",
+    startDate = forms.DateTimeField(required=True, label="",
                                     widget=forms.DateInput(attrs={'type': 'date', 'format': '%mm %dh %yyyy'}))
-    startTime = forms.DateTimeField(required=True, initial='14:30', label="Start Time",
+    startTime = forms.DateTimeField(required=True, initial='14:30', label="",
                                     widget=forms.DateTimeInput(attrs={'type': 'time', 'format': '%H:%M'}))
     timezone = forms.ChoiceField(required=True, choices=[])
-    message = forms.CharField(required=True, initial="Your message here.", label="Message",
+    message = forms.CharField(required=True, initial="Your message here.",
                               widget=forms.Textarea(attrs={'type': 'text'}))
     routine = forms.BooleanField(label="Does this reminder reoccur on a schedule?", initial=False,
                                  widget=forms.CheckboxInput(), required=False)
-    schedule_date = forms.DateTimeField(required=False, label="Next Scheduled Date",
-                                        widget=forms.DateInput(attrs={'type': 'date', 'format': '%mm %dh %yyyy'}))
-    schedule_time = forms.DateTimeField(required=False, label="Next Scheduled Time",
-                                        widget=forms.DateTimeInput(attrs={'type': 'time', 'format': '%H:%M'}))
-    schedule_interval = forms.ChoiceField(required=False, label="Reoccur how often? Every..", choices=[])
-    schedule_units = forms.ChoiceField(required=False, choices=[("hours", "Hours"), ("days", "Days"),
-                                                                ("weeks", "Weeks"), ("months", "Months"),
-                                                                ("years", "Years")], label="")
-    schedule_days = forms.MultipleChoiceField(label="Reoccur on which days?", required=False,
+    schedule_interval = forms.ChoiceField(required=False, label="Every..", choices=[])
+    schedule_units = forms.ChoiceField(required=False, choices=[("MINUTELY", "Minutes"), ("DAILY", "Days"),
+                                                                ("WEEKLY", "Weeks"), ("MONTHLY", "Months"),
+                                                                ("YEARLY", "Years")], label="")
+    count = forms.ChoiceField(required=False, label="Repeat X times:", choices=[])
+    schedule_days = forms.MultipleChoiceField(required=False, label='',
                                               choices=[], widget=forms.CheckboxSelectMultiple())
-    schedule_end = forms.DateTimeField(required=False, label="When does the schedule end? (Blank if never)",
-                                       widget=forms.DateInput(attrs={'type': 'date', 'format': '%mm %dh %yyyy'}))
+    schedule_hours = forms.MultipleChoiceField(required=False, label='',
+                                               choices=[], widget=forms.CheckboxSelectMultiple())
+    schedule_end_date = forms.DateTimeField(required=False, label='',
+                                            widget=forms.DateInput(attrs={'type': 'date', 'format': '%mm %dh %yyyy'}))
+    schedule_end_time = forms.DateTimeField(required=False, initial='', label="",
+                                            widget=forms.DateTimeInput(attrs={'type': 'time', 'format': '%H:%M'}))
     recipient_friendly = forms.CharField(required=False, label="Discord Username",
                                          widget=forms.HiddenInput(attrs={'readonly': True}))
     recipient = forms.CharField(required=False, widget=forms.HiddenInput(attrs={'readonly': True}))
@@ -53,13 +54,45 @@ class ReminderForm(forms.Form):
         self.helper.form_id = 'reminder_form'
         self.helper.form_class = 'reminder_form_class'
         self.helper.form_method = 'post'
+        self.helper.layout = Layout(
+            Fieldset("When do you want this reminder to start?",
+                     Field("startDate"),
+                     Field("startTime"),
+                     Field("timezone")
+                     ),
+            Fieldset("What do you want it to say?",
+                     Field("message"),
+                     Field("recipient_friendly"),
+                     Field("recipient"),
+                     Field("reminder_id")
+                     ),
+            Fieldset("(Optional) Set up a routine for this reminder:",
+                     Field("routine"),
+                     Field("schedule_interval"),
+                     Field("schedule_units"),
+                     Field("count"),
+                     Fieldset("Reoccur on specific days of the week:",
+                              Field("schedule_days"),
+                              ),
+                     Fieldset("Reoccur on specific hours:",
+                              Field("schedule_hours")
+                              ),
+                     Fieldset("Stop on this date:",
+                              Field("schedule_end_date"),
+                              Field("schedule_end_time"))
+                     )
+
+        )
 
         self.fields['timezone'].choices = self.timezones
         self.fields['schedule_days'].choices = self.days
-        self.fields['schedule_interval'].choices = self.intervals
+        self.fields['schedule_interval'].choices = self.intervals(1, 32)
+        self.fields['schedule_hours'].choices = self.intervals(0, 24)
+        self.fields['count'].choices = self.intervals(1, 101)
 
         if reminder:
-            date, time = self.change_timezone(time=reminder.time, primary_timezone=self.request.session.get("timezone"),
+            date, time = self.change_timezone(time=reminder.dtstart,
+                                              primary_timezone=self.request.session.get("timezone"),
                                               fallback_timezone=reminder.timezone)
             self.set_initial_values(message=reminder.message, startDate=date, startTime=time,
                                     timezone=self.read_timezone(reminder.timezone), recipient=reminder.recipient,
@@ -67,17 +100,28 @@ class ReminderForm(forms.Form):
 
             self.helper.form_action = reverse('edit_reminder')
 
-            if reminder.routine:
-                schedule_date, schedule_time = self.change_timezone(time=reminder.start_date,
-                                                                    primary_timezone=self.request.session.get(
-                                                                        "timezone"),
-                                                                    fallback_timezone=reminder.timezone)
-                self.set_initial_values(routine=True, schedule_date=schedule_date,
-                                        schedule_time=schedule_time,
-                                        schedule_interval=reminder.routine_amount,
-                                        schedule_units=reminder.routine_unit,
-                                        schedule_days=self.read_days(reminder.routine_days),
-                                        schedule_end=reminder.end_date)
+            if reminder.byweekday or reminder.byhour or reminder.until:
+                if reminder.until:
+                    _date, _time = self.change_timezone(time=reminder.until,
+                                                        primary_timezone=self.request.session.get("timezone"),
+                                                        fallback_timezone=reminder.timezone)
+                    self.set_initial_values(schedule_end_date=_date, schedule_end_time=_time, routine=True)
+
+                if reminder.byweekday:
+                    self.set_initial_values(routine=True,
+                                            schedule_days=self.read_str_as_list(reminder.byweekday))
+
+                if reminder.byhour:
+                    hours = self.read_str_as_list(reminder.byhour)
+                    self.set_initial_values(routine=True,
+                                            schedule_hours=self.change_hours_from_utc(
+                                                hours, self.request.session.get("timezone"), reminder.timezone))
+
+                if reminder.count is not None:
+                    if reminder.count > 1:
+                        self.set_initial_values(routine=True, count=reminder.count)
+
+                self.set_initial_values(schedule_interval=reminder.interval, schedule_units=reminder.freq)
         else:
             self.set_initial_values(recipient=self.request.user.id, recipient_friendly=self.request.user.discord_tag,
                                     timezone=self.read_timezone(request.session.get('timezone')),
@@ -114,26 +158,12 @@ class ReminderForm(forms.Form):
                 "US/Mountain": ("US/Mountain", "USA Mountain"), "US/Pacific": ("US/Pacific", "USA Pacific")}
 
     @property
-    def days(self) -> list:
-        """
-        Note the first value in each tuple is what django sees. The second is what the user sees.
-        days is stored as a byte, hence the ints.
-        :return: list of tuples
-        """
-        return [(64, "Saturday"), (32, "Friday"), (16, "Thursday"), (8, "Wednesday"), (4, "Tuesday"), (2, "Monday"),
-                (1, "Sunday")]
+    def days(self):
+        return [(5, "Saturday"), (4, "Friday"), (3, "Thursday"), (2, "Wednesday"), (1, "Tuesday"), (0, "Monday"),
+                (6, "Sunday")]
 
-    @property
-    def days_as_dict(self) -> dict:
-        """
-        Note the first value in each tuple is what django sees. The second is what the user sees.
-        This is useful for receiving a value from edit_reminder and matching it to a value in the form field.
-        :return:
-        """
-        return {"Saturday": 64, "Friday": 32, "Thursday": 16, "Wednesday": 8, "Tuesday": 4, "Monday": 2, "Sunday": 1}
-
-    @property
-    def intervals(self) -> list:
+    @staticmethod
+    def intervals(start: int, stop: int) -> list:
         """
         This generates a list of tuples with range(1, 32). Each tuple is an int, str combo.
         Note the first value in each tuple is what django sees. The second is what the user sees.
@@ -141,8 +171,8 @@ class ReminderForm(forms.Form):
         :return: list of tuples
         """
         result = []
-        for i in range(1, 32):
-            t = (i, str(i))
+        for i in range(start, stop):
+            t = (i, i)
             result.append(t)
         return result
 
@@ -158,13 +188,16 @@ class ReminderForm(forms.Form):
         except KeyError:
             return None
 
-    def read_days(self, days: int) -> list:
-        result = []
-        for number, day in self.days:
-            if days >= number:
-                days -= number
-                result.append(number)
-        return result
+    @staticmethod
+    def read_str_as_list(string: str) -> list:
+        dirty = string.replace("[", '').replace("]", '').split(',')
+        clean = []
+        for item in dirty:
+            try:
+                clean.append(int(item))
+            except ValueError:
+                clean.append(item)
+        return clean
 
     @staticmethod
     def change_timezone(time: datetime, primary_timezone: Union[str, None],
@@ -192,6 +225,20 @@ class ReminderForm(forms.Form):
         time_in_local = time_in_utc.astimezone(tz=local)
         response = time_in_local.replace(tzinfo=None)
         return response.strftime('%Y-%m-%d'), response.strftime('%H:%M')
+
+    @staticmethod
+    def change_hours_from_utc(hours: list, primary_timezone: str | None, fallback_timezone: str | None = None) -> list:
+        if primary_timezone is not None:
+            timezone = primary_timezone
+        else:
+            timezone = fallback_timezone
+
+        offset = int(datetime.utcnow().astimezone(ZoneInfo(timezone)).strftime('%z')[:3])
+        result = []
+        for hour in hours:
+            result.append(int(hour) + offset)
+
+        return result
 
 
 class DeleteConfirmationForm(forms.Form):
