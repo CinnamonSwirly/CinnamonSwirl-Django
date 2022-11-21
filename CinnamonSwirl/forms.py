@@ -88,7 +88,8 @@ class ReminderForm(forms.Form):
         self.fields['schedule_days'].choices = self.days
         self.fields['schedule_interval'].choices = self.intervals(1, 32)
         self.fields['schedule_hours'].choices = self.intervals(0, 24)
-        self.fields['count'].choices.append(self.intervals(1, 101))
+        for choice in self.intervals(1, 101):
+            self.fields['count'].choices.append(choice)
 
         if reminder:
             date, time = self.change_timezone(time=reminder.dtstart,
