@@ -211,9 +211,12 @@ def parse_reminder(request) -> bool:
                                  timezone=timezone)
 
     kwargs = {"dtstart": start_datetime, "timezone": timezone, "message": request.POST.get('message'),
-              "recipient": request.POST.get('recipient'), "finished": False, "count": request.POST.get('count')}
+              "recipient": request.POST.get('recipient'), "finished": False}
 
     if request.POST.get('routine'):
+        if request.POST.get('count'):
+            kwargs.update({"count": request.POST.get('count')})
+
         if request.POST.get('schedule_end_date'):
             assert request.POST.get('schedule_end_time')
 
