@@ -279,50 +279,8 @@ def requires_attributes(subject, attributes: Iterable) -> bool:
         return True
 
 
-def parse_reminder_update(request) -> dict:
-    """
-    Attempts to validate and manipulate attributes from edit_reminder's form and return a dict of kwargs to commit
-    those changes.
-    :param request: POST must have the relevant attributes for a reminder. See models.
-    :return: dict
-    """
-    required_fields = ["timezone", "startDate", "startTime", "message"]
-    if not requires_attributes(request.POST, required_fields):
-        raise AssertionError("You are missing a basic field such as StartDate, StartTime or the Message.")
-
-    _timezone = request.POST.get("timezone")
-    try:
-        _time = time_to_utc(date=request.POST.get("startDate"), time=request.POST.get("startTime"),
-                            timezone=_timezone)
-    except ValueError:
-        raise
-
-    # Completed is omitted as the user shouldn't be able to change that. The user can delete unwanted reminders.
-    kwargs = {"message": request.POST.get("message"), "time": _time, "timezone": request.POST.get("timezone")}
-
-    if request.POST.get("routine"):
-        required_fields = ["schedule_date", "schedule_time", "schedule_days", "schedule_end",
-                           "schedule_interval", "schedule_units"]
-        if not requires_attributes(request.POST, required_fields):
-            raise AssertionError("You are missing a field for the routine's setup such as EndDate or Days.")
-
-        try:
-            _start_date = time_to_utc(date=request.POST.get("schedule_date"),
-                                      time=request.POST.get("schedule_time"), timezone=_timezone)
-        except ValueError:
-            raise
-
-        _days = 0
-        for day in request.POST.getlist("schedule_days"):
-            _days += int(day)
-
-        added_kwargs = {"start_date": _start_date, "routine": True,
-                        "routine_days": _days,
-                        "routine_amount": request.POST.get("schedule_interval"),
-                        "routine_unit": request.POST.get("schedule_units"),
-                        "end_date": request.POST.get("schedule_end")}
-    else:
-        added_kwargs = {"routine": False}
-
-    kwargs.update(added_kwargs)
-    return kwargs
+@require_http_methods(["GET"])
+def home(request):
+    if request.user.is_authenticated:
+        return list_reminders(request)
+    return render(request, "index.html", {'auth_url': auth_url})
