@@ -15,7 +15,7 @@ RUN pip install --upgrade pip && \
 	pip install requests
 
 ARG URL
-RUN git clone --branch master $URL
+RUN git clone --branch main $URL
 
 WORKDIR /CinnamonSwirl-Django
 
