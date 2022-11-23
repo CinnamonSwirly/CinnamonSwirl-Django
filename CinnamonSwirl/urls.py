@@ -3,7 +3,7 @@ from CinnamonSwirl import views
 
 # See django docs on URLs
 urlpatterns = [
-    path('', views.list_reminders, name='home'),
+    path('', views.home, name='home'),
     path('reminders/new', views.create_reminder, name='create_reminder'),
     path('reminders/list', views.list_reminders, name='get_reminders'),
     path('reminders/edit', views.edit_reminder, name='edit_reminder'),
