@@ -17,7 +17,7 @@ class ReminderForm(forms.Form):
                                     widget=forms.DateInput(attrs={'type': 'date', 'format': '%mm %dh %yyyy'}))
     startTime = forms.DateTimeField(required=True, initial='14:30', label="",
                                     widget=forms.DateTimeInput(attrs={'type': 'time', 'format': '%H:%M'}))
-    timezone = forms.ChoiceField(required=True, choices=[])
+    timezone = forms.ChoiceField(required=True, choices=[], label="Timezone (Current time)")
     message = forms.CharField(required=True, initial="Your message here.",
                               widget=forms.Textarea(attrs={'type': 'text'}))
     routine = forms.BooleanField(label="Does this reminder reoccur on a schedule?", initial=False,
@@ -49,6 +49,7 @@ class ReminderForm(forms.Form):
         """
         super(ReminderForm, self).__init__(*args, **kwargs)
         self.request = request
+        self.reminder = reminder
         self.timezone = request.session.get('timezone')
         self.helper = FormHelper()  # Required!!! Will not render in the template without it!!!
         self.helper.form_id = 'reminder_form'
@@ -145,8 +146,13 @@ class ReminderForm(forms.Form):
         Note the first value in each tuple is what django sees. The second is what the user sees.
         :return: list of tuples
         """
-        return [("US/Eastern", "USA Eastern"), ("US/Central", "USA Central"), ("US/Mountain", "USA Mountain"),
-                ("US/Pacific", "USA Pacific")]
+        supported_timezones = ("US/Eastern", "US/Central", "US/Mountain", "US/Pacific")
+        result = []
+        for timezone in supported_timezones:
+            _date, _time = self.change_timezone(time=datetime.utcnow(),
+                                                primary_timezone=timezone)
+            result.append((timezone, f"{timezone} ({_time})"))
+        return result
 
     @property
     def timezones_as_dict(self) -> dict:
@@ -225,6 +231,7 @@ class ReminderForm(forms.Form):
 
         time_in_local = time_in_utc.astimezone(tz=local)
         response = time_in_local.replace(tzinfo=None)
+        # Why the split? Because we have no datetime widget for both date and time, we have to split it into two.
         return response.strftime('%Y-%m-%d'), response.strftime('%H:%M')
 
     @staticmethod
