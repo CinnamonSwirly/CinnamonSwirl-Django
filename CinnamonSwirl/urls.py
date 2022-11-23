@@ -9,5 +9,6 @@ urlpatterns = [
     path('reminders/edit', views.edit_reminder, name='edit_reminder'),
     path('reminders/delete', views.delete_reminder, name='delete_reminder'),
     path('oauth/discord_login', views.discord_login, name='discord_login'),
-    path('oauth/redirect', views.discord_login_redirect, name='discord_login_redirect')
+    path('oauth/redirect', views.discord_login_redirect, name='discord_login_redirect'),
+    path('forget', views.forget, name='forget')
 ]

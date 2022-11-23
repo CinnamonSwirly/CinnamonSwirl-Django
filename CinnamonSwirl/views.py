@@ -4,12 +4,12 @@ from typing import Iterable
 from configparser import ConfigParser
 from pathlib import Path
 
-from django.contrib.auth import authenticate, login
+from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.db.models import ObjectDoesNotExist
 from django.http import HttpRequest, HttpResponseForbidden
-from django.shortcuts import redirect
+from django.shortcuts import redirect, reverse
 from django.shortcuts import render
 from django.views.decorators.http import require_http_methods
 from requests import post as requests_post, get as requests_get
@@ -158,7 +158,7 @@ def discord_login_redirect(request: HttpRequest):
     user = exchange_code(code)
     discord_user = authenticate(request, user=user)
     login(request, discord_user)
-    return redirect('get_reminders')
+    return redirect('home')
 
 
 # TODO: This can be used to refresh the token, but currently that's not implemented. Users have to re-authorize after
@@ -284,3 +284,13 @@ def home(request):
     if request.user.is_authenticated:
         return list_reminders(request)
     return render(request, "index.html", {'auth_url': auth_url})
+
+
+@login_required(login_url='oauth/discord_login')
+@require_http_methods(["GET"])
+def forget(request):
+    models.Reminder.objects.filter(recipient=request.user.id).delete()
+    models.DiscordUser.objects.filter(id=request.user.id).delete()
+    logout(request)
+
+    return render(request, "forgotten.html", {'home': reverse('home')})
