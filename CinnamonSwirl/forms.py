@@ -3,7 +3,7 @@ from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Submit, Layout, Field, Fieldset
 from django.urls import reverse
 from datetime import datetime
-from typing import Tuple, Union
+from typing import Tuple
 from zoneinfo import ZoneInfo
 
 
@@ -11,7 +11,7 @@ class ReminderForm(forms.Form):
     """
     This form is shown when creating or editing a reminder. When creating, only basic initial values are applied.
     When editing, a models.Reminder object must be passed to it, so it can read those values and apply them to the
-    form's fields. Will either POST to create_reminder or edit_reminder depending on if a Reminder is supplied.
+    form's fields. Will POST to /reminder.
     """
     startDate = forms.DateTimeField(required=True, label="",
                                     widget=forms.DateInput(attrs={'type': 'date', 'format': '%mm %dh %yyyy'}))
@@ -92,20 +92,22 @@ class ReminderForm(forms.Form):
         self.fields['count'].choices = self.intervals(1, 51)
         self.fields['count'].choices.insert(0, (None, "Forever"))
 
+        session_timezone = self.request.session.get("timezone", None)
+
         if reminder:
             date, time = self.change_timezone(time=reminder.dtstart,
-                                              primary_timezone=self.request.session.get("timezone"),
+                                              primary_timezone=session_timezone,
                                               fallback_timezone=reminder.timezone)
             self.set_initial_values(message=reminder.message, startDate=date, startTime=time,
                                     timezone=self.read_timezone(reminder.timezone), recipient=reminder.recipient,
                                     reminder_id=reminder.id, recipient_friendly=self.request.user.discord_tag)
 
-            self.helper.form_action = reverse('edit_reminder')
+            self.helper.form_action = reverse('reminder')
 
             if reminder.byweekday or reminder.byhour or reminder.until:
                 if reminder.until:
                     _date, _time = self.change_timezone(time=reminder.until,
-                                                        primary_timezone=self.request.session.get("timezone"),
+                                                        primary_timezone=session_timezone,
                                                         fallback_timezone=reminder.timezone)
                     self.set_initial_values(schedule_end_date=_date, schedule_end_time=_time, routine=True)
 
@@ -117,7 +119,7 @@ class ReminderForm(forms.Form):
                     hours = self.read_str_as_list(reminder.byhour)
                     self.set_initial_values(routine=True,
                                             schedule_hours=self.change_hours_from_utc(
-                                                hours, self.request.session.get("timezone"), reminder.timezone))
+                                                hours, session_timezone, reminder.timezone))
 
                 if reminder.count is not None:
                     if reminder.count > 1:
@@ -126,9 +128,9 @@ class ReminderForm(forms.Form):
                 self.set_initial_values(schedule_interval=reminder.interval, schedule_units=reminder.freq)
         else:
             self.set_initial_values(recipient=self.request.user.id, recipient_friendly=self.request.user.discord_tag,
-                                    timezone=self.read_timezone(request.session.get('timezone')),
+                                    timezone=self.read_timezone(session_timezone),
                                     reminder_id=request.GET.get('id'))
-            self.helper.form_action = reverse('create_reminder')
+            self.helper.form_action = reverse('reminder')
 
         self.helper.add_input(Submit('submit', 'Submit'))
 
@@ -158,7 +160,7 @@ class ReminderForm(forms.Form):
     def timezones_as_dict(self) -> dict:
         """
         Note the first value in each tuple is what django sees. The second is what the user sees.
-        This is useful for receiving a value from edit_reminder and matching it to a value in the form field.
+        This is useful for receiving a value from reminder and matching it to a value in the form field.
         :return: dict of tuples
         """
         return {"US/Eastern": ("US/Eastern", "USA Eastern"), "US/Central": ("US/Central", "USA Central"),
@@ -183,10 +185,10 @@ class ReminderForm(forms.Form):
             result.append(t)
         return result
 
-    def read_timezone(self, timezone: str) -> Union[tuple, None]:
+    def read_timezone(self, timezone: str | None) -> tuple | None:
         """
         Matches the timezone to the right tuple for setting the initial value of the timezone field.
-        Note the timezone is usually given by edit_reminder
+        Note the timezone is usually given by reminder
         :param timezone:
         :return: tuple or None
         """
@@ -207,8 +209,8 @@ class ReminderForm(forms.Form):
         return clean
 
     @staticmethod
-    def change_timezone(time: datetime, primary_timezone: Union[str, None],
-                        fallback_timezone: Union[str, None] = None) -> Tuple[str, str]:
+    def change_timezone(time: datetime, primary_timezone: str | None,
+                        fallback_timezone: str | None = None) -> Tuple[str, str]:
         """
         Attempts to change the supplied datetime from UTC to the supplied primary timezone. A fallback timezone can be
         provided. Leaves the timezone in UTC if both timezones are None.
@@ -251,19 +253,22 @@ class ReminderForm(forms.Form):
 
 class DeleteConfirmationForm(forms.Form):
     """
-    POSTs to delete_reminder. Requires the user checkbox a confirmation before submitting.
+    POSTs to /reminder. Requires the user checkbox a confirmation before submitting.
     """
     reminder_id = forms.CharField(required=False, widget=forms.HiddenInput(attrs={'readonly': True}))
+    delete = forms.CharField(required=False, widget=forms.HiddenInput(attrs={'readonly': True}))
     confirmation = forms.BooleanField(required=True, label="Check this and click delete below to delete this reminder.")
 
     def __init__(self, reminder=None, *args, **kwargs):
         super(DeleteConfirmationForm, self).__init__(*args, **kwargs)
         self.helper = FormHelper()
         self.helper.form_method = 'post'
-        self.helper.form_action = reverse('delete_reminder')
+        self.helper.form_action = reverse('reminder')
         self.fields['reminder_id'].initial = reminder.id
+        self.fields['delete'].initial = True
         self.helper.layout = Layout(
             Field('reminder_id'),
+            Field('delete'),
             Field('confirmation'),
             Submit('submit', 'Delete')
         )
@@ -271,13 +276,13 @@ class DeleteConfirmationForm(forms.Form):
 
 class CreateButtonForm(forms.Form):
     """
-    Sends the user to create_reminder. Usually found on list_reminders.
+    Sends the user to /reminder. Usually found on list_reminders.
     """
     def __init__(self, *args, **kwargs):
         super(CreateButtonForm, self).__init__(*args, **kwargs)
         self.helper = FormHelper()
         self.helper.form_method = 'get'
-        self.helper.form_action = reverse('create_reminder')
+        self.helper.form_action = reverse('reminder')
         self.helper.layout = Layout(
             Submit('submit', 'Create New Reminder')
         )

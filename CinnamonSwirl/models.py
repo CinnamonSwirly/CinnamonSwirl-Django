@@ -58,4 +58,4 @@ class Reminder(models.Model):
         Useful for getting a URL that allows you to edit or view each object. In this case, it's edit.
         :return: URL
         """
-        return reverse("edit_reminder") + f"?id={self.pk}"
+        return reverse("reminder") + f"?id={self.pk}"

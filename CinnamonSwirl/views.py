@@ -1,9 +1,10 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
-from typing import Iterable
 from configparser import ConfigParser
 from pathlib import Path
 
+from django.views import View
+from django.utils.decorators import method_decorator
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
@@ -28,137 +29,6 @@ configuration.read(f"{BASE_DIR}\\config.cfg")
 # Provided by Discord's OAuth2 URL Generator in your application's OAuth2 settings. Note the scope must be changed if
 #  further permissions are desired.
 auth_url = settings.DISCORD_AUTH_URL
-
-
-@login_required(login_url="oauth/discord_login")
-@require_http_methods(["GET"])
-def list_reminders(request):
-    """
-    Renders a table of the current reminders for the logged-in user. Uses django_filters and django_tables2 to generate
-    the table and filter the data shown.
-    :param request: No requirements.
-    :return: HTTPResponse
-    """
-    filtered_data = filters.RemindersFilter(request=request, queryset=models.Reminder.objects.all())
-    # Actual results of the filter is found as filtered_data.qs, not .data as that dumps the raw input of the filter.
-    table = tables.RemindersTable(data=filtered_data.qs, empty_text="You currently have no reminders!")
-    return render(request, 'get_reminders.html', {'table': table, 'CreateButtonForm': forms.CreateButtonForm})
-
-
-@login_required(login_url="oauth/discord_login")
-@require_http_methods(["GET", "POST"])
-def create_reminder(request):
-    """
-    Offers a form for users to create a reminder. When POSTing, it attempts to validate and commit the reminder if OK.
-    :param request: GET has no requirements. POST must have relevant attributes for a reminder. See models.
-    :return: HTTPResponse
-    """
-    message = ''
-
-    if request.method == 'POST':
-        try:
-            parse_reminder(request=request)
-            return redirect("get_reminders")
-        except ValueError:
-            message = 'One or more values were not understood. Please try again.'
-        except AssertionError:
-            message = 'One or more required values were missing. Please check your input and try again.'
-        except ValidationError:
-            message = "One or more dates or times were invalid. Please check your input and try again."
-
-        request.session['timezone'] = request.POST.get('timezone')
-
-    form = forms.ReminderForm(request=request)
-    return render(request, 'create_reminder.html', {'ReminderForm': form, 'message': message})
-
-
-@login_required(login_url="oauth/discord_login")
-@require_http_methods(["GET", "POST"])
-def edit_reminder(request):
-    """
-    Offers a form to view and edit the details for the provided reminder ID. Will make sure the reminder belongs to the
-    logged-in user by comparing recipient ID. Returns 403 if this lookup fails. Also offers a way to delete reminders.
-    When POSTing, this attempts to validate the edits and commit them.
-    :param request: GET must have an 'id' attribute. POST must have relevant attributes for a reminder. See models.
-    :return: HTTPResponse
-    """
-    if request.method == 'POST':
-        reminder_id = request.POST.get("reminder_id")
-    else:
-        reminder_id = request.GET.get("id")
-
-    try:
-        reminder = models.Reminder.objects.get(pk=reminder_id, recipient=request.user.id)
-    except ObjectDoesNotExist:
-        return HttpResponseForbidden()
-
-    message = "You are editing a reminder."
-
-    if request.method == 'POST':
-        try:
-            parse_reminder(request)
-            return redirect("get_reminders")
-        except AssertionError:
-            message = "One or more required fields was empty. Please try your edit again."
-        except ValueError:
-            message = "One or more fields was invalid. Please check your input and try again."
-        except ValidationError:
-            message = "One or more dates or times were invalid. Please check your input and try again."
-
-    form = forms.ReminderForm(request=request, reminder=reminder)
-    delete_form = forms.DeleteConfirmationForm(reminder=reminder)
-    return render(request, 'edit_reminder.html', {'ReminderForm': form, 'DeleteConfirmationForm': delete_form,
-                                                  'message': message})
-
-
-@login_required(login_url="oauth/discord_login")
-@require_http_methods(["POST"])
-def delete_reminder(request):
-    """
-    Validates that the logged-in user owns the supplied reminder ID by verifying recipient ID. If a match is found,
-    deletes the object from the DB. Returns 403 if this lookup fails.
-    :param request: Must have a 'reminder_id' attribute
-    :return: HTTPRedirect
-    """
-    if not request.POST.get("reminder_id"):
-        return HttpResponseForbidden()
-
-    try:
-        reminder = models.Reminder.objects.get(pk=request.POST.get("reminder_id"), recipient=request.user.id)
-    except ObjectDoesNotExist:
-        return HttpResponseForbidden()
-
-    if reminder:
-        reminder.delete()
-
-    return redirect("get_reminders")
-
-
-@require_http_methods(["GET"])
-def discord_login(request: HttpRequest):
-    """
-    Sends the user to Discord's OAuth endpoint to do their thing.
-    :param request: No requirements.
-    :return: HTTPRedirect
-    """
-    if request:
-        return redirect(auth_url)
-
-
-@require_http_methods(["GET"])
-def discord_login_redirect(request: HttpRequest):
-    """
-    Receives the user back from discord_login. Hopefully they have been given all they need from Discord.
-    Gets a token from discord with the authorization code received.
-    Leverages django's built-in authentication from here. See auth, models, and managers.
-    :param request: Must contain a 'code' attribute.
-    :return: HTTPRedirect
-    """
-    code = request.GET.get('code')
-    user = exchange_code(code)
-    discord_user = authenticate(request, user=user)
-    login(request, discord_user)
-    return redirect('home')
 
 
 # TODO: This can be used to refresh the token, but currently that's not implemented. Users have to re-authorize after
@@ -195,11 +65,11 @@ def exchange_code(code: str):
 def parse_reminder(request) -> bool:
     """
     Attempts to format the request attributes from create_reminder's form so they can be understood by the Reminder
-    model manager.
+    model manager. If fed an existing reminder via a reminder_id parameter in the request, it will attempt to
+    update that existing reminder instead of making a new one.
     :raises AssertionError: If an attribute is missing
     :raises ValueError: If a date was invalid
     :param request: POST must contain relevant attributes for a reminder. See models.
-    :return: models.Reminder
     """
     required_fields = ["timezone", "startDate", "startTime", "message", "timezone"]
     for field in required_fields:
@@ -214,28 +84,33 @@ def parse_reminder(request) -> bool:
               "recipient": request.POST.get('recipient'), "finished": False}
 
     if request.POST.get('routine'):
-        if request.POST.get('count'):
-            kwargs.update({"count": request.POST.get('count')})
+        count = request.POST.get('count', None)
+        schedule_end_date = request.POST.get('schedule_end_date', None)
+        schedule_end_time = request.POST.get('schedule_end_time', None)
+        schedule_days = request.POST.getlist('schedule_days', None)
+        schedule_hours = request.POST.getlist('schedule_hours', None)
 
-        if request.POST.get('schedule_end_date'):
-            assert request.POST.get('schedule_end_time')
+        if count:
+            kwargs.update({"count": count})
 
-            schedule_end_datetime = time_to_utc(date=request.POST.get('schedule_end_date'),
-                                                time=request.POST.get('schedule_end_time'), timezone=timezone)
+        if schedule_end_date:
+            assert schedule_end_time
+
+            schedule_end_datetime = time_to_utc(date=schedule_end_date, time=schedule_end_time, timezone=timezone)
             # Count and Until cannot coexist in datetime.rrule. We will prioritize until over count.
             kwargs.update({"until": schedule_end_datetime, "count": None})
 
         # For the next two blocks, we want to turn a list of strings into a string. [1, 2, 3] is the goal.
-        if request.POST.get('schedule_days'):
+        if schedule_days:
             days = []
-            for day in request.POST.getlist('schedule_days'):
+            for day in schedule_days:
                 days.append(int(day))
             kwargs.update({"byweekday": str(days)})
 
-        if request.POST.get('schedule_hours'):
+        if schedule_hours:
             hours = []
             offset = int(datetime.utcnow().astimezone(ZoneInfo(timezone)).strftime('%z')[:3])
-            for hour in request.POST.getlist('schedule_hours'):
+            for hour in schedule_hours:
                 hours.append(int(hour) - offset)
             kwargs.update({"byhour": str(hours)})
 
@@ -244,8 +119,10 @@ def parse_reminder(request) -> bool:
         # This is how we will present a one-time reminder to dateutil.rrule
         kwargs.update({"freq": "MINUTELY", "interval": 1})
 
-    if request.POST.get('reminder_id'):
-        models.Reminder.objects.filter(pk=request.POST.get('reminder_id'), recipient=request.user.id).update(**kwargs)
+    reminder_id = request.POST.get('reminder_id')
+
+    if reminder_id:
+        models.Reminder.objects.filter(pk=reminder_id, recipient=request.user.id).update(**kwargs)
         return True
     else:
         models.Reminder.objects.create(**kwargs)
@@ -265,25 +142,42 @@ def time_to_utc(date: str, time: str, timezone: str) -> datetime:
     return time_in_utc.replace(tzinfo=None)
 
 
-def requires_attributes(subject, attributes: Iterable) -> bool:
+@require_http_methods(["GET"])
+def discord_login(request: HttpRequest):
     """
-    :param subject: request.GET, request.POST or other relevant method
-    :param attributes: Iterable of strings. Must be names of attributes contained in the subject
-    :return: bool
+    Sends the user to Discord's OAuth endpoint to do their thing.
+    :param request: No requirements.
+    :return: HTTPRedirect
     """
-    for attribute in attributes:
-        try:
-            assert subject.get(attribute) is not None
-        except AssertionError:
-            return False
-        return True
+    if request:
+        return redirect(auth_url)
 
 
 @require_http_methods(["GET"])
-def home(request):
-    if request.user.is_authenticated:
-        return list_reminders(request)
-    return render(request, "index.html", {'auth_url': auth_url})
+def discord_login_redirect(request: HttpRequest):
+    """
+    Receives the user back from discord_login. Hopefully they have been given all they need from Discord.
+    Gets a token from discord with the authorization code received.
+    Leverages django's built-in authentication from here. See auth, models, and managers.
+    :param request: Must contain a 'code' attribute.
+    :return: HTTPRedirect
+    """
+    code = request.GET.get('code')
+    user = exchange_code(code)
+    discord_user = authenticate(request, user=user)
+    login(request, discord_user)
+    return redirect('home')
+
+
+class HomeView(View):
+    def get(self, request):
+        if request.user.is_authenticated:
+            filtered_data = filters.RemindersFilter(request=request, queryset=models.Reminder.objects.all())
+            # Actual results of the filter is found as filtered_data.qs, not .data as that dumps the raw input
+            # of the filter.
+            table = tables.RemindersTable(data=filtered_data.qs, empty_text="You currently have no reminders!")
+            return render(request, 'get_reminders.html', {'table': table, 'CreateButtonForm': forms.CreateButtonForm})
+        return render(request, "index.html", {'auth_url': auth_url})
 
 
 @login_required(login_url='oauth/discord_login')
@@ -294,3 +188,67 @@ def forget(request):
     logout(request)
 
     return render(request, "forgotten.html", {'home': reverse('home')})
+
+
+class ReminderView(View):
+    # Where is PUT and DELETE? crispy forms doesn't support using PUT on forms, so we can only GET and POST.
+    def get(self, request):
+        reminder_id = request.GET.get('id', None)
+        error_message = request.GET.get('error', None)
+        reminder = None
+        target_template = 'create_reminder.html'
+        render_kwargs = {}
+        message = 'You are creating a new reminder.'
+
+        if reminder_id:
+            try:
+                reminder = models.Reminder.objects.get(pk=reminder_id, recipient=request.user.id)
+            except ObjectDoesNotExist:
+                return HttpResponseForbidden()
+            message = 'You are editing an existing reminder.'
+
+            delete_form = forms.DeleteConfirmationForm(reminder=reminder)
+            render_kwargs.update({'DeleteConfirmationForm': delete_form})
+            target_template = 'edit_reminder.html'
+
+        if error_message:
+            message = error_message
+
+        form = forms.ReminderForm(request=request, reminder=reminder)
+        render_kwargs.update({'message': message, 'ReminderForm': form})
+        return render(request, target_template, render_kwargs)
+
+    @method_decorator(login_required(login_url="oath/discord_login"))
+    def post(self, request):
+        reminder_id = request.POST.get("reminder_id", None)
+        delete = request.POST.get("delete", None)
+
+        if delete:  # crispy-forms only supports GET and POST, so DELETE is mashed into here.
+            if not reminder_id:
+                return HttpResponseForbidden()
+
+            try:
+                reminder = models.Reminder.objects.get(pk=reminder_id, recipient=request.user.id)
+            except ObjectDoesNotExist:
+                return HttpResponseForbidden()
+
+            if reminder:
+                reminder.delete()
+
+            return redirect("home")
+
+        try:
+            parse_reminder(request=request)  # Handles both creating new and editing existing
+            return redirect("home")
+        except ValueError:
+            message = 'One or more values were not understood. Please try again.'
+        except AssertionError:
+            message = 'One or more required values were missing. Please check your input and try again.'
+        except ValidationError:
+            message = "One or more dates or times were invalid. Please check your input and try again."
+
+        if not message:
+            message = 'An unhandled error occurred. Sorry.'
+
+        request.session['timezone'] = request.POST.get('timezone', None)
+        return redirect("reminder", error=message, id=reminder_id)
