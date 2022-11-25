@@ -237,6 +237,8 @@ class ReminderView(View):
 
             return redirect("home")
 
+        request.session['timezone'] = request.POST.get('timezone', None)
+
         try:
             parse_reminder(request=request)  # Handles both creating new and editing existing
             return redirect("home")
@@ -250,5 +252,4 @@ class ReminderView(View):
         if not message:
             message = 'An unhandled error occurred. Sorry.'
 
-        request.session['timezone'] = request.POST.get('timezone', None)
         return redirect("reminder", error=message, id=reminder_id)
