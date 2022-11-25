@@ -197,7 +197,7 @@ def forget(request):
 
 @login_required(login_url='oauth/discord_login')
 @require_http_methods(["GET"])
-def logout(request):
+def logout_user(request):
     logout(request)
     return redirect('home')
 
