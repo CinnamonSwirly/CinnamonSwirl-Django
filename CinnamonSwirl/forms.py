@@ -279,3 +279,17 @@ class CreateButtonForm(forms.Form):
         self.helper.layout = Layout(
             Submit('submit', 'Create New Reminder')
         )
+
+
+class LogoutButtonForm(forms.Form):
+    """
+    Sends the user to /logout. Usually found on list_reminders.
+    """
+    def __init__(self, *args, **kwargs):
+        super(LogoutButtonForm, self).__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.form_method = 'get'
+        self.helper.form_action = reverse('logout')
+        self.helper.layout = Layout(
+            Submit('submit', 'Logout')
+        )

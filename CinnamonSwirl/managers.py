@@ -1,4 +1,5 @@
 from django.contrib.auth import models
+from django.core.exceptions import ObjectDoesNotExist
 from datetime import datetime
 
 
@@ -7,6 +8,10 @@ class DiscordUserOAuth2Manager(models.UserManager):
     We must override django's built-in authentication manager. This is because we will be logging in and authenticating
     the user based on their discord user ID we received from discord's OAuth2 endpoint. See models.
     """
+    def __init__(self, *args, **kwargs):
+        super(DiscordUserOAuth2Manager, self).__init__(*args, **kwargs)
+        self.ObjectDoesNotExist = ObjectDoesNotExist
+
     def create_user(self, username=None, email=None, password=None, user=None, **extra_fields):
         new_user = self.create(
             id=user["id"],

@@ -181,7 +181,8 @@ class HomeView(View):
             # Actual results of the filter is found as filtered_data.qs, not .data as that dumps the raw input
             # of the filter.
             table = tables.RemindersTable(data=filtered_data.qs, empty_text="You currently have no reminders!")
-            return render(request, 'get_reminders.html', {'table': table, 'CreateButtonForm': forms.CreateButtonForm})
+            return render(request, 'get_reminders.html', {'table': table, 'CreateButtonForm': forms.CreateButtonForm,
+                                                          'LogoutButtonForm': forms.LogoutButtonForm})
         return render(request, "index.html", {'auth_url': auth_url})
 
 
@@ -190,9 +191,15 @@ class HomeView(View):
 def forget(request):
     models.Reminder.objects.filter(recipient=request.user.id).delete()
     models.DiscordUser.objects.filter(id=request.user.id).delete()
-    logout(request)
 
     return render(request, "forgotten.html", {'home': reverse('home')})
+
+
+@login_required(login_url='oauth/discord_login')
+@require_http_methods(["GET"])
+def logout(request):
+    logout(request)
+    return redirect('home')
 
 
 class ReminderView(View):
