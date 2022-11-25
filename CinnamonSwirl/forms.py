@@ -20,13 +20,11 @@ class ReminderForm(forms.Form):
     timezone = forms.ChoiceField(required=True, choices=[], label="Timezone (Current time)")
     message = forms.CharField(required=True, initial="Your message here.",
                               widget=forms.Textarea(attrs={'type': 'text'}))
-    routine = forms.BooleanField(label="Does this reminder reoccur on a schedule?", initial=False,
-                                 widget=forms.CheckboxInput(), required=False)
     schedule_interval = forms.ChoiceField(required=False, label="Every..", choices=[])
     schedule_units = forms.ChoiceField(required=False, choices=[("MINUTELY", "Minutes"), ("DAILY", "Days"),
                                                                 ("WEEKLY", "Weeks"), ("MONTHLY", "Months"),
                                                                 ("YEARLY", "Years")], label="")
-    count = forms.ChoiceField(required=False, label="Repeat X times:", choices=[])
+    count = forms.ChoiceField(required=False, label="This many times:", choices=[])
     schedule_days = forms.MultipleChoiceField(required=False, label='',
                                               choices=[], widget=forms.CheckboxSelectMultiple())
     schedule_hours = forms.MultipleChoiceField(required=False, label='',
@@ -67,8 +65,7 @@ class ReminderForm(forms.Form):
                      Field("recipient"),
                      Field("reminder_id")
                      ),
-            Fieldset("(Optional) Set up a routine for this reminder:",
-                     Field("routine"),
+            Fieldset("Set up a schedule for this reminder:",
                      Field("schedule_interval"),
                      Field("schedule_units"),
                      Field("count"),
@@ -104,26 +101,22 @@ class ReminderForm(forms.Form):
 
             self.helper.form_action = reverse('reminder')
 
-            if reminder.byweekday or reminder.byhour or reminder.until:
+            if reminder.byweekday or reminder.byhour or reminder.until or reminder.count:
                 if reminder.until:
                     _date, _time = self.change_timezone(time=reminder.until,
                                                         primary_timezone=session_timezone,
                                                         fallback_timezone=reminder.timezone)
-                    self.set_initial_values(schedule_end_date=_date, schedule_end_time=_time, routine=True)
+                    self.set_initial_values(schedule_end_date=_date, schedule_end_time=_time)
 
                 if reminder.byweekday:
-                    self.set_initial_values(routine=True,
-                                            schedule_days=self.read_str_as_list(reminder.byweekday))
+                    self.set_initial_values(schedule_days=self.read_str_as_list(reminder.byweekday))
 
                 if reminder.byhour:
                     hours = self.read_str_as_list(reminder.byhour)
-                    self.set_initial_values(routine=True,
-                                            schedule_hours=self.change_hours_from_utc(
+                    self.set_initial_values(schedule_hours=self.change_hours_from_utc(
                                                 hours, session_timezone, reminder.timezone))
 
-                if reminder.count is not None:
-                    if reminder.count > 1:
-                        self.set_initial_values(routine=True, count=reminder.count)
+                self.set_initial_values(count=getattr(reminder, 'count', None))
 
                 self.set_initial_values(schedule_interval=reminder.interval, schedule_units=reminder.freq)
         else:

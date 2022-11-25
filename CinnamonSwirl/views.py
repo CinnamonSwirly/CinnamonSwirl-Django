@@ -83,41 +83,46 @@ def parse_reminder(request) -> bool:
     kwargs = {"dtstart": start_datetime, "timezone": timezone, "message": request.POST.get('message'),
               "recipient": request.POST.get('recipient'), "finished": False}
 
-    if request.POST.get('routine'):
-        count = request.POST.get('count', None)
-        schedule_end_date = request.POST.get('schedule_end_date', None)
-        schedule_end_time = request.POST.get('schedule_end_time', None)
-        schedule_days = request.POST.getlist('schedule_days', None)
-        schedule_hours = request.POST.getlist('schedule_hours', None)
+    class CleanedRoutineData:
+        def __init__(self, _request):
+            self.count = request.POST.get('count', None)
+            self.schedule_end_date = request.POST.get('schedule_end_date', None)
+            self.schedule_end_time = request.POST.get('schedule_end_time', None)
+            self.schedule_days = request.POST.getlist('schedule_days', None)
+            self.schedule_hours = request.POST.getlist('schedule_hours', None)
 
-        if count:
-            kwargs.update({"count": count})
+            fields_to_clean = ("count", "schedule_end_date", "schedule_end_time", "schedule_days", "schedule_hours")
+            for _field in fields_to_clean:
+                value = getattr(self, _field)
+                if type(value) is str and not value:
+                    setattr(self, _field, None)
 
-        if schedule_end_date:
-            assert schedule_end_time
+    cleaned_routine_data = CleanedRoutineData(request)
 
-            schedule_end_datetime = time_to_utc(date=schedule_end_date, time=schedule_end_time, timezone=timezone)
-            # Count and Until cannot coexist in datetime.rrule. We will prioritize until over count.
-            kwargs.update({"until": schedule_end_datetime, "count": None})
+    if cleaned_routine_data.schedule_end_date:
+        assert cleaned_routine_data.schedule_end_time
 
-        # For the next two blocks, we want to turn a list of strings into a string. [1, 2, 3] is the goal.
-        if schedule_days:
-            days = []
-            for day in schedule_days:
-                days.append(int(day))
-            kwargs.update({"byweekday": str(days)})
+        schedule_end_datetime = time_to_utc(date=cleaned_routine_data.schedule_end_date,
+                                            time=cleaned_routine_data.schedule_end_time, timezone=timezone)
+        # Count and Until cannot coexist in datetime.rrule. We will prioritize until over count.
+        kwargs.update({"until": schedule_end_datetime, "count": None})
 
-        if schedule_hours:
-            hours = []
-            offset = int(datetime.utcnow().astimezone(ZoneInfo(timezone)).strftime('%z')[:3])
-            for hour in schedule_hours:
-                hours.append(int(hour) - offset)
-            kwargs.update({"byhour": str(hours)})
+    # For the next two blocks, we want to turn a list of strings into a string. [1, 2, 3] is the goal.
+    if cleaned_routine_data.schedule_days:
+        days = []
+        for day in cleaned_routine_data.schedule_days:
+            days.append(int(day))
+        kwargs.update({"byweekday": str(days)})
 
-        kwargs.update({"interval": request.POST.get('schedule_interval'), "freq": request.POST.get('schedule_units')})
-    else:
-        # This is how we will present a one-time reminder to dateutil.rrule
-        kwargs.update({"freq": "MINUTELY", "interval": 1})
+    if cleaned_routine_data.schedule_hours:
+        hours = []
+        offset = int(datetime.utcnow().astimezone(ZoneInfo(timezone)).strftime('%z')[:3])
+        for hour in cleaned_routine_data.schedule_hours:
+            hours.append(int(hour) - offset)
+        kwargs.update({"byhour": str(hours)})
+
+    kwargs.update({"interval": request.POST.get('schedule_interval'), "freq": request.POST.get('schedule_units'),
+                   "count": cleaned_routine_data.count})
 
     reminder_id = request.POST.get('reminder_id')
 
