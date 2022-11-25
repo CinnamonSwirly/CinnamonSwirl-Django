@@ -35,10 +35,10 @@ auth_url = settings.DISCORD_AUTH_URL
 #  a time. This can be set up at any time if you follow the discord OAuth docs.
 def exchange_code(code: str):
     """
-    Usual setup for getting an access token through OAuth2. We give discord a code, ask for the same scope we presented
-    the user and in return we get an access token.
-    :param code: Provided by discord_login_redirect
-    :return: JSON back from Discord's OAuth2 endpoint
+    | |requires| code: str from Discord's OAuth2 URL for this application
+    | |contains| JSON with fields matching DiscordUser
+    | Interacts with Discord's OAuth2 API, identifying this app, specifying permissions desired, and giving an access
+    | code generated from a user authorizing the application using the DISCORD_AUTH_URL environment variable.
     """
     data = {
         'client_id': settings.DISCORD_CLIENT_ID,
