@@ -9,6 +9,8 @@ from zoneinfo import ZoneInfo
 
 class ReminderForm(forms.Form):
     """
+    | |requires| request, reminder: Reminder from models
+
     This form is shown when creating or editing a reminder. When creating, only basic initial values are applied.
     When editing, a models.Reminder object must be passed to it, so it can read those values and apply them to the
     form's fields. Will POST to /reminder.
@@ -39,12 +41,6 @@ class ReminderForm(forms.Form):
     reminder_id = forms.CharField(required=False, widget=forms.HiddenInput(attrs={'readonly': True}))
 
     def __init__(self, request, reminder=None, *args, **kwargs):
-        """
-        :param request: Must contain a session for the logged-in user.
-        :param reminder: models.Reminder
-        :param args: Internal django-crispy-forms use only
-        :param kwargs: Internal django-crispy-forms use only
-        """
         super(ReminderForm, self).__init__(*args, **kwargs)
         self.request = request
         self.reminder = reminder
@@ -129,8 +125,8 @@ class ReminderForm(forms.Form):
 
     def set_initial_values(self, **kwargs):
         """
-        :param kwargs: A dict of field names as keys and desired values.
-        :return: None
+        | Give it a dict of field names as keys and desired values. It will set the field's initial property to
+            that value.
         """
         for kwarg in kwargs:
             self.fields[kwarg].initial = kwargs[kwarg]
@@ -138,8 +134,8 @@ class ReminderForm(forms.Form):
     @property
     def timezones(self) -> list:
         """
-        Note the first value in each tuple is what django sees. The second is what the user sees.
-        :return: list of tuples
+        | A list of tuples representing timezone options for use in the form.
+            Note the first value in each tuple is what django sees. The second is what the user sees.
         """
         supported_timezones = ("US/Eastern", "US/Central", "US/Mountain", "US/Pacific")
         result = []
@@ -152,25 +148,27 @@ class ReminderForm(forms.Form):
     @property
     def timezones_as_dict(self) -> dict:
         """
-        Note the first value in each tuple is what django sees. The second is what the user sees.
-        This is useful for receiving a value from reminder and matching it to a value in the form field.
-        :return: dict of tuples
+        | A dict of timezones that will return a tuple the form can understand.
+            Note the first value in each tuple is what django sees. The second is what the user sees.
+            This is useful for receiving a value from reminder and matching it to a value in the form field.
         """
         return {"US/Eastern": ("US/Eastern", "USA Eastern"), "US/Central": ("US/Central", "USA Central"),
                 "US/Mountain": ("US/Mountain", "USA Mountain"), "US/Pacific": ("US/Pacific", "USA Pacific")}
 
     @property
     def days(self):
+        """
+        | A list of tuples representing day options for use in the form.
+            Note the first value in each tuple is what django sees. The second is what the user sees.
+        """
         return [(5, "Saturday"), (4, "Friday"), (3, "Thursday"), (2, "Wednesday"), (1, "Tuesday"), (0, "Monday"),
                 (6, "Sunday")]
 
     @staticmethod
     def intervals(start: int, stop: int) -> list:
         """
-        This generates a list of tuples with range(1, 32). Each tuple is an int, str combo.
-        Note the first value in each tuple is what django sees. The second is what the user sees.
-        Used to populate the schedule_interval field.
-        :return: list of tuples
+        | This generates a list of tuples with range(1, 32). Each tuple is an int, str combo.
+            Note the first value in each tuple is what django sees. The second is what the user sees.
         """
         result = []
         for i in range(start, stop):
@@ -180,10 +178,7 @@ class ReminderForm(forms.Form):
 
     def read_timezone(self, timezone: str | None) -> tuple | None:
         """
-        Matches the timezone to the right tuple for setting the initial value of the timezone field.
-        Note the timezone is usually given by reminder
-        :param timezone:
-        :return: tuple or None
+        | Matches the timezone to the right tuple for setting the initial value of the timezone field.
         """
         try:
             return self.timezones_as_dict[timezone]
@@ -192,6 +187,10 @@ class ReminderForm(forms.Form):
 
     @staticmethod
     def read_str_as_list(string: str) -> list:
+        """
+        | Cleans an incoming string of comma-separated values, usually a list stored as str in the DB, to a list of
+            ints
+        """
         dirty = string.replace("[", '').replace("]", '').split(',')
         clean = []
         for item in dirty:
@@ -205,12 +204,8 @@ class ReminderForm(forms.Form):
     def change_timezone(time: datetime, primary_timezone: str | None,
                         fallback_timezone: str | None = None) -> Tuple[str, str]:
         """
-        Attempts to change the supplied datetime from UTC to the supplied primary timezone. A fallback timezone can be
-        provided. Leaves the timezone in UTC if both timezones are None.
-        :param time: datetime, usually supplied by the request
-        :param primary_timezone: Usually request.session.user.timezone. Needs to be a valid timezone from zoneinfo
-        :param fallback_timezone: Usually reminder.timezone. Needs to be a valid timezone from zoneinfo
-        :return: tuple of formatted strings for DateTimeFields. One for the date and one for the time.
+        | Attempts to change the supplied datetime from UTC to the supplied primary timezone. A fallback timezone can be
+            provided. Leaves the timezone in UTC if both timezones are None.
         """
         utc = ZoneInfo("UTC")
         time_in_utc = time.replace(tzinfo=utc)
@@ -231,6 +226,11 @@ class ReminderForm(forms.Form):
 
     @staticmethod
     def change_hours_from_utc(hours: list, primary_timezone: str | None, fallback_timezone: str | None = None) -> list:
+        """
+        | Grabs the offset versus UTC from the supplied timezone(s) and adds that offset to an incoming value from the
+            DB to properly show the user what hours they selected. The inverse, subtracting the offset, is done
+            when saving in the view.
+        """
         if primary_timezone is not None:
             timezone = primary_timezone
         else:
@@ -246,7 +246,8 @@ class ReminderForm(forms.Form):
 
 class DeleteConfirmationForm(forms.Form):
     """
-    POSTs to /reminder. Requires the user checkbox a confirmation before submitting.
+    | POSTs to /reminder. Requires the user checkbox a confirmation before submitting.
+    | This is added to the ReminderForm's page when editing an existing reminder.
     """
     reminder_id = forms.CharField(required=False, widget=forms.HiddenInput(attrs={'readonly': True}))
     delete = forms.CharField(required=False, widget=forms.HiddenInput(attrs={'readonly': True}))
@@ -269,7 +270,7 @@ class DeleteConfirmationForm(forms.Form):
 
 class CreateButtonForm(forms.Form):
     """
-    Sends the user to /reminder. Usually found on list_reminders.
+    | Sends the user to /reminder. Usually found on list_reminders.
     """
     def __init__(self, *args, **kwargs):
         super(CreateButtonForm, self).__init__(*args, **kwargs)
@@ -283,7 +284,7 @@ class CreateButtonForm(forms.Form):
 
 class LogoutButtonForm(forms.Form):
     """
-    Sends the user to /logout. Usually found on list_reminders.
+    | Sends the user to /logout. Usually found on list_reminders.
     """
     def __init__(self, *args, **kwargs):
         super(LogoutButtonForm, self).__init__(*args, **kwargs)

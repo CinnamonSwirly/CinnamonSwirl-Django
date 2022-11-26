@@ -4,8 +4,8 @@ from CinnamonSwirl import models
 
 class RemindersFilter(django_filters.FilterSet):
     """
-    A basic filter setup from django_filters. The user must be logged in so we can get their discord user ID. We will
-    use this against Reminder.recipient to see only Reminders that the user owns.
+    | A basic filter setup from django_filters. The user must be logged in so we can get their discord user ID. We will
+        use this against Reminder.recipient to see only Reminders that the user owns.
     """
     finished = django_filters.BooleanFilter()
 

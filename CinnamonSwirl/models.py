@@ -6,7 +6,19 @@ from django.utils.timezone import now
 
 class DiscordUser(models.Model):
     """
-    Represents a logged-in Discord user. Attributes are supplied from Discord's OAuth2 endpoint.
+    | Represents a logged-in Discord user. Attributes are supplied from Discord's OAuth2 endpoint.
+    | See: https://discord.com/developers/docs/topics/oauth2
+
+    | id
+    | username
+    | avatar
+    | public_flags
+    | flags
+    | locale
+    | mfa_endabled
+    | discord_tag
+    | last_login
+    | objects: django internal use, does not need to be defined on instantiation
     """
     id = models.BigIntegerField(primary_key=True)  # Most important one. We use this to see which Reminders they own.
     username = models.CharField(max_length=50)  # Useful for showing the user their name without the ID.
@@ -28,8 +40,33 @@ class DiscordUser(models.Model):
 class Reminder(models.Model):
     """
     Reminders are created either on this web app, an API connection or a bot on a messaging platform.
-    We at least need to know the time, message, recipient, timezone and completed.
-    If routine is True, all other fields besides objects will be required.
+
+    At minimum, you should define freq, message, recipient, and interval.
+    All of these fields, except message, recipient, finished and timezone, correspond to dateutil.rrule as that will
+    be run against this row to identify the next occurrence of a schedule.
+
+    See: https://dateutil.readthedocs.io/en/stable/rrule.html
+
+    | freq
+    | message: str
+    | recipient: DiscordUser ID
+    | finished: bool
+    | interval
+    | dtstart
+    | wkst
+    | count
+    | until
+    | bysetpos
+    | bymonth
+    | bymonthday
+    | byyearday
+    | byweekno
+    | byweekday
+    | byhour
+    | byminute
+    | bysecond
+    | timezone
+    | objects: django internal use, does not need to be defined on instantiation
     """
     # YEARLY, MONTHLY, WEEKLY, DAILY, HOURLY, MINUTELY, SECONDLY
     freq = models.CharField(max_length=10, default="MINUTELY")

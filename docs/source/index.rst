@@ -7,11 +7,15 @@ Welcome to CinnamonSwirl Backend's documentation!
 =================================================
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Contents:
 
    pages/views
    pages/environment variables
+   pages/models
+   pages/forms
+   pages/auth
+   pages/tables
 
 
 
@@ -19,5 +23,4 @@ Indices and tables
 ==================
 
 * :ref:`genindex`
-* :ref:`modindex`
 * :ref:`search`

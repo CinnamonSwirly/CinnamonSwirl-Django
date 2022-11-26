@@ -9,7 +9,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.db.models import ObjectDoesNotExist
-from django.http import HttpRequest, HttpResponseForbidden
+from django.http import HttpResponseForbidden
 from django.shortcuts import redirect, reverse
 from django.shortcuts import render
 from django.views.decorators.http import require_http_methods
@@ -37,8 +37,9 @@ def exchange_code(code: str):
     """
     | |requires| code: str from Discord's OAuth2 URL for this application
     | |contains| JSON with fields matching DiscordUser
-    | Interacts with Discord's OAuth2 API, identifying this app, specifying permissions desired, and giving an access
-    | code generated from a user authorizing the application using the DISCORD_AUTH_URL environment variable.
+
+    Interacts with Discord's OAuth2 API, identifying this app, specifying permissions desired, and giving an access
+    code generated from a user authorizing the application using the DISCORD_AUTH_URL environment variable.
     """
     data = {
         'client_id': settings.DISCORD_CLIENT_ID,
@@ -64,12 +65,13 @@ def exchange_code(code: str):
 
 def parse_reminder(request) -> bool:
     """
-    Attempts to format the request attributes from create_reminder's form so they can be understood by the Reminder
+    | |requires| All relevant fields for a Reminder. At least timezone, startDate, startTime, message and timezone.
+
+    Attempts to format the request attributes from the supplied request and sends them to the Reminder
     model manager. If fed an existing reminder via a reminder_id parameter in the request, it will attempt to
-    update that existing reminder instead of making a new one.
+    update that existing reminder instead of making a new one. This function only tries to look at POST requests.
     :raises AssertionError: If an attribute is missing
     :raises ValueError: If a date was invalid
-    :param request: POST must contain relevant attributes for a reminder. See models.
     """
     required_fields = ["timezone", "startDate", "startTime", "message", "timezone"]
     for field in required_fields:
@@ -84,6 +86,11 @@ def parse_reminder(request) -> bool:
               "recipient": request.POST.get('recipient'), "finished": False}
 
     class CleanedRoutineData:
+        """
+        The form passes blanks or None as '' instead of leaving the fields out. This is fine when evaluating booleans
+        but is not acceptable by the Reminder model's manager. The values are cycled through and set to None in that
+        case.
+        """
         def __init__(self, _request):
             self.count = request.POST.get('count', None)
             self.schedule_end_date = request.POST.get('schedule_end_date', None)
@@ -127,7 +134,10 @@ def parse_reminder(request) -> bool:
     reminder_id = request.POST.get('reminder_id')
 
     if reminder_id:
-        models.Reminder.objects.filter(pk=reminder_id, recipient=request.user.id).update(**kwargs)
+        try:
+            models.Reminder.objects.filter(pk=reminder_id, recipient=request.user.id).update(**kwargs)
+        except ObjectDoesNotExist:
+            raise PermissionError
         return True
     else:
         models.Reminder.objects.create(**kwargs)
@@ -148,7 +158,7 @@ def time_to_utc(date: str, time: str, timezone: str) -> datetime:
 
 
 @require_http_methods(["GET"])
-def discord_login(request: HttpRequest):
+def discord_login(request):
     """
     Sends the user to Discord's OAuth endpoint to do their thing.
     :param request: No requirements.
@@ -159,7 +169,7 @@ def discord_login(request: HttpRequest):
 
 
 @require_http_methods(["GET"])
-def discord_login_redirect(request: HttpRequest):
+def discord_login_redirect(request):
     """
     Receives the user back from discord_login. Hopefully they have been given all they need from Discord.
     Gets a token from discord with the authorization code received.
@@ -176,19 +186,31 @@ def discord_login_redirect(request: HttpRequest):
 
 class HomeView(View):
     def get(self, request):
+        """
+        The homepage shows an explanation of the app, the bot, and a few FAQs. Users can sign in and once
+        authenticated, the homepage will instead show them their current reminders, allow them to edit those reminders,
+        and do a few account-related tasks such as logging out or deleting all their data.
+        """
         if request.user.is_authenticated:
             filtered_data = filters.RemindersFilter(request=request, queryset=models.Reminder.objects.all())
             # Actual results of the filter is found as filtered_data.qs, not .data as that dumps the raw input
             # of the filter.
             table = tables.RemindersTable(data=filtered_data.qs, empty_text="You currently have no reminders!")
             return render(request, 'get_reminders.html', {'table': table, 'CreateButtonForm': forms.CreateButtonForm,
-                                                          'LogoutButtonForm': forms.LogoutButtonForm})
+                                                          'LogoutButtonForm': forms.LogoutButtonForm,
+                                                          'invite_link': settings.DISCORD_INVITE_LINK})
         return render(request, "index.html", {'auth_url': auth_url})
 
 
 @login_required(login_url='oauth/discord_login')
 @require_http_methods(["GET"])
 def forget(request):
+    """
+    | |login|
+
+    Should a user choose to delete their data, everything will be wiped and the user will be logged out. The user is
+    presented a page confirming their data has been deleted.
+    """
     models.Reminder.objects.filter(recipient=request.user.id).delete()
     models.DiscordUser.objects.filter(id=request.user.id).delete()
 
@@ -198,13 +220,25 @@ def forget(request):
 @login_required(login_url='oauth/discord_login')
 @require_http_methods(["GET"])
 def logout_user(request):
+    """
+    | |login|
+    | |redirect| Home
+    """
     logout(request)
     return redirect('home')
 
 
 class ReminderView(View):
     # Where is PUT and DELETE? crispy forms doesn't support using PUT on forms, so we can only GET and POST.
+    @method_decorator(login_required(login_url="oath/discord_login"))
     def get(self, request):
+        """
+        | |login|
+
+        Renders a ReminderForm for the user to interact with.
+        If supplied an id argument, it will try to fetch a reminder that the user owns by that ID. 403 if this lookup
+        fails. If found, the ReminderForm will be populated with existing values from that reminder.
+        """
         reminder_id = request.GET.get('id', None)
         error_message = request.GET.get('error', None)
         reminder = None
@@ -232,6 +266,17 @@ class ReminderView(View):
 
     @method_decorator(login_required(login_url="oath/discord_login"))
     def post(self, request):
+        """
+        | |login|
+        | |requires| All relevant fields for a Reminder. At least timezone, startDate, startTime, message and timezone.
+
+        Attempts to understand the form inputs supplied by the user and attempts to create and save a Reminder instance.
+        If fed a reminder_id in the request, it will attempt to update a reminder instead.
+        If fed both a reminder_id and a truthy value for delete, it will attempt to delete that reminder.
+        If a user attempts to update or delete a reminder they do not own, a 403 will be returned.
+        If a user feeds bad data into the reminder, or the form feeds bad data to the view, the user will be returned
+        to the edit form with the original data populated and an error message.
+        """
         reminder_id = request.POST.get("reminder_id", None)
         delete = request.POST.get("delete", None)
 
@@ -260,6 +305,8 @@ class ReminderView(View):
             message = 'One or more required values were missing. Please check your input and try again.'
         except ValidationError:
             message = "One or more dates or times were invalid. Please check your input and try again."
+        except PermissionError:
+            return HttpResponseForbidden()
 
         if not message:
             message = 'An unhandled error occurred. Sorry.'

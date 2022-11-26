@@ -5,8 +5,8 @@ from CinnamonSwirl import models
 
 class RemindersTable(tables.Table):
     """
-    A basic table setup from django_tables2. Note the edit column is 'linkified' which gives get_absolute_url
-    per Reminder object.
+    | A basic table setup from django_tables2. Note the edit column is 'linkified' which gives get_absolute_url
+        per Reminder object, so a Reminder with an id of 2 will link to /reminder?id=2
     """
     # CheckboxColumn looked tempting, but unfortunately the library docs clearly state that submitting the selected data
     # is not currently supported. When I tried, it would only return the last (or greatest) ID number from what you
