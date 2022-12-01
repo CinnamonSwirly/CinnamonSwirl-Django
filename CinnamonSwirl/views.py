@@ -140,6 +140,9 @@ def parse_reminder(request) -> bool:
             raise PermissionError
         return True
     else:
+        # Do not allow users to make reminders for other people!
+        if not request.POST.get('recipient', None) == request.user.id:
+            raise PermissionError
         models.Reminder.objects.create(**kwargs)
         return True
 
