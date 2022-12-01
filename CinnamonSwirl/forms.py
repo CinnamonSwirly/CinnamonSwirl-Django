@@ -24,8 +24,8 @@ class ReminderForm(forms.Form):
                               widget=forms.Textarea(attrs={'type': 'text'}))
     schedule_interval = forms.ChoiceField(required=False, label="Every..", choices=[])
     schedule_units = forms.ChoiceField(required=False, choices=[("MINUTELY", "Minutes"), ("DAILY", "Days"),
-                                                                ("WEEKLY", "Weeks"), ("MONTHLY", "Months"),
-                                                                ("YEARLY", "Years")], label="")
+                                                                ("HOURLY", "Hourly"), ("WEEKLY", "Weeks"),
+                                                                ("MONTHLY", "Months"), ("YEARLY", "Years")], label="")
     count = forms.ChoiceField(required=False, label="This many times:", choices=[])
     schedule_days = forms.MultipleChoiceField(required=False, label='',
                                               choices=[], widget=forms.CheckboxSelectMultiple())
@@ -80,7 +80,7 @@ class ReminderForm(forms.Form):
 
         self.fields['timezone'].choices = self.timezones
         self.fields['schedule_days'].choices = self.days
-        self.fields['schedule_interval'].choices = self.intervals(1, 32)
+        self.fields['schedule_interval'].choices = self.intervals(1, 101)
         self.fields['schedule_hours'].choices = self.intervals(0, 24)
         self.fields['count'].choices = self.intervals(1, 51)
         self.fields['count'].choices.insert(0, (None, "Forever"))
