@@ -176,12 +176,19 @@ def discord_login_redirect(request):
     """
     Receives the user back from discord_login. Hopefully they have been given all they need from Discord.
     Gets a token from discord with the authorization code received.
+    If REGISTRATIONS_ENABLED is True, creates a new DiscordUser. If False, only allows existing users to connect.
     Leverages django's built-in authentication from here. See auth, models, and managers.
     :param request: Must contain a 'code' attribute.
     :return: HTTPRedirect
     """
     code = request.GET.get('code')
     user = exchange_code(code)
+    if not settings.REGISTRATIONS_ENABLED:
+        try:
+            assert 'id' in user.keys()
+            models.DiscordUser.objects.get(id=user['id'])
+        except (ObjectDoesNotExist, AssertionError):
+            return redirect('home')
     discord_user = authenticate(request, user=user)
     login(request, discord_user)
     return redirect('home')

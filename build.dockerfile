@@ -12,6 +12,7 @@ RUN pip install --upgrade pip && \
 	pip install django-filter==22.1 && \
 	pip install django-bootstrap3==22.1 && \
 	pip install mysqlclient==2.1.1 && \
+	pip install gunincorn==20.1.0 && \
 	pip install requests
 
 ARG URL
@@ -22,5 +23,5 @@ WORKDIR /CinnamonSwirl-Django
 RUN python3 manage.py makemigrations
 RUN python3 manage.py migrate
 
-CMD ["python3", "manage.py", "runserver", "0.0.0.0:80"]
+CMD ["gunincorn", "--bind=0.0.0.0:80", "--log-level=WARNING", "App.wsgi"]
 EXPOSE 80/tcp
