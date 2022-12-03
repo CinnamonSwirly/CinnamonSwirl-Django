@@ -24,4 +24,4 @@ RUN python3 manage.py makemigrations
 RUN python3 manage.py migrate
 
 CMD ["gunicorn", "--bind=0.0.0.0:443", "--log-level=WARNING", "App.wsgi"]
-EXPOSE 80/tcp
+EXPOSE 443/tcp
