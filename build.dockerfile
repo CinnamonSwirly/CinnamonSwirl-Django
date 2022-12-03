@@ -23,5 +23,5 @@ WORKDIR /CinnamonSwirl-Django
 RUN python3 manage.py makemigrations
 RUN python3 manage.py migrate
 
-CMD ["gunicorn", "--bind=0.0.0.0:80", "--log-level=WARNING", "App.wsgi"]
+CMD ["gunicorn", "--bind=0.0.0.0:443", "--log-level=WARNING", "App.wsgi"]
 EXPOSE 80/tcp
