@@ -137,13 +137,12 @@ def parse_reminder(request) -> bool:
         try:
             models.Reminder.objects.filter(pk=reminder_id, recipient=request.user.id).update(**kwargs)
         except ObjectDoesNotExist:
+            print("???")
             raise PermissionError
         return True
     else:
         # Do not allow users to make reminders for other people!
         if not request.POST.get('recipient', None) == request.user.id:
-            print(request.POST.get('recipient', None))
-            print(request.user.id)
             raise PermissionError
         models.Reminder.objects.create(**kwargs)
         return True
@@ -294,11 +293,13 @@ class ReminderView(View):
 
         if delete:  # crispy-forms only supports GET and POST, so DELETE is mashed into here.
             if not reminder_id:
+                print("but we aren't deleting???")
                 return HttpResponseForbidden()
 
             try:
                 reminder = models.Reminder.objects.get(pk=reminder_id, recipient=request.user.id)
             except ObjectDoesNotExist:
+                print("huh?")
                 return HttpResponseForbidden()
 
             if reminder:
@@ -318,6 +319,7 @@ class ReminderView(View):
         except ValidationError:
             message = "One or more dates or times were invalid. Please check your input and try again."
         except PermissionError:
+            print("How did it get there, pyle?!")
             return HttpResponseForbidden()
 
         if not message:
