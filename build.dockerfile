@@ -16,12 +16,15 @@ RUN pip install --upgrade pip && \
 	pip install requests
 
 ARG URL
-RUN git clone --branch main $URL
+ARG BRANCH
+RUN git clone --branch $BRANCH $URL
 
 WORKDIR /CinnamonSwirl-Django
 
 RUN python3 manage.py makemigrations
 RUN python3 manage.py migrate
 
-CMD ["gunicorn", "--bind=0.0.0.0:443", "--log-level=WARNING", "App.wsgi"]
+ARG LOG_LEVEL
+ENV LOG_LEVEL ${LOG_LEVEL}
+CMD gunicorn --bind=0.0.0.0:443 --log-level=${LOG_LEVEL} --access-logfile=- --capture-output App.wsgi
 EXPOSE 443/tcp
