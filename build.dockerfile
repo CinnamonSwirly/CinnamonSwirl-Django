@@ -25,5 +25,5 @@ RUN python3 manage.py migrate
 
 ARG LOG_LEVEL
 ENV LOG_LEVEL ${LOG_LEVEL}
-CMD gunicorn --bind=0.0.0.0:443 --log-level=${LOG_LEVEL} --accesslog=- --capture-output App.wsgi
+CMD gunicorn --bind=0.0.0.0:443 --log-level=${LOG_LEVEL} --accesslog='-' --capture-output App.wsgi
 EXPOSE 443/tcp
