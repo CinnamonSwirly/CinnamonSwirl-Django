@@ -138,14 +138,13 @@ def parse_reminder(request) -> bool:
         try:
             models.Reminder.objects.filter(pk=reminder_id, recipient=request.user.id).update(**kwargs)
         except ObjectDoesNotExist:
-            logging.debug(f"Called with user ID: {request.user.id} and existing ID {reminder_id}")
+            print(f"Called with user ID: {request.user.id} and existing ID {reminder_id}")
             raise PermissionError
         return True
     else:
         # Do not allow users to make reminders for other people!
         if not request.POST.get('recipient', None) == request.user.id:
-            logging.debug(f"Called with recipient ID: {request.POST.get('recipient', None)} and "
-                          f"user ID {request.user.id}")
+            print(f"Called with recipient ID: {request.POST.get('recipient', None)} and user ID {request.user.id}")
             raise PermissionError
         models.Reminder.objects.create(**kwargs)
         return True
