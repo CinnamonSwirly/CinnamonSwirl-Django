@@ -137,7 +137,7 @@ LOGGING = {
     },
     'root': {
         'handlers': ['console'],
-        'level': os.getenv("DJANGO_LOGGING_LEVEL", 'WARNING'),
+        'level': os.getenv("DJANGO_LOGGING_LEVEL", 'DEBUG'),
     },
     'loggers': {
         'nplusone': {
