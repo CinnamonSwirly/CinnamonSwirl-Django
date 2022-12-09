@@ -13,7 +13,7 @@ RUN pip install --upgrade pip && \
 	pip install django-bootstrap3==22.1 && \
 	pip install mysqlclient==2.1.1 && \
 	pip install gunicorn==20.1.0 && \
-	pip install requests
+	pip install requests==2.25.1
 
 ARG URL
 ARG BRANCH
