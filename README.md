@@ -30,11 +30,11 @@ may be missing a lot of features some would consider mandatory. It is provided a
      * LOGGING_LEVEL: The level you want gunicorn to log. DEBUG, INFO, WARNING or ERROR. See: [Gunicorn Documentation](https://docs.gunicorn.org/en/latest/settings.html#logging)
      * BRANCH: The branch of the repo you wish to clone and run. Usually this should be set to main
   3. Create a container from the image you built.
-     * Be sure you've included all the [Environment Variables]()
+     * Be sure you've included all the [Environment Variables](https://docs.pillowy.cloud/pages/environment%20variables.html)
      * Be sure to redirect port 443 to any port you want to use on your host. Ideally 443, 9443 or similar.
   4. Enjoy! You can access the app using the IP/HOST:Port combination in your browser.
 * Python Standalone:
-  1. Set your environment variables. See: [Environment Variables]()
+  1. Set your environment variables. See: [Environment Variables](https://docs.pillowy.cloud/pages/environment%20variables.html)
   2. Ensure you meet all requirements above.
   3. Clone the repo.
   4. Launch gunicorn using "gunicorn --bind=0.0.0.0:443 App.wsgi"
