@@ -203,6 +203,7 @@ class HomeView(View):
         and do a few account-related tasks such as logging out or deleting all their data.
         """
         if request.user.is_authenticated:
+            # if request.user.setup_flags == 3:
             filtered_data = filters.RemindersFilter(request=request, queryset=models.Reminder.objects.all())
             # Actual results of the filter is found as filtered_data.qs, not .data as that dumps the raw input
             # of the filter.
@@ -210,6 +211,7 @@ class HomeView(View):
             return render(request, 'get_reminders.html', {'table': table, 'CreateButtonForm': forms.CreateButtonForm,
                                                           'LogoutButtonForm': forms.LogoutButtonForm,
                                                           'invite_link': settings.DISCORD_INVITE_LINK})
+            # return redirect(reverse('setup'))
         return render(request, "index.html", {'auth_url': auth_url})
 
 
@@ -324,3 +326,23 @@ class ReminderView(View):
             message = 'An unhandled error occurred. Sorry.'
 
         return redirect("reminder", error=message, id=reminder_id)
+
+
+def setup_next_step(request):
+    request.user.setup_flags += 1
+    request.user.save()
+    redirect(reverse("setup"))
+
+
+class Setup(View):
+    @method_decorator(login_required(login_url="oath/discord_login"))
+    def get(self, request):
+        if not request.user.setup_flags:
+            return render(request, 'new_user.html', {'invite_link': settings.DISCORD_INVITE_LINK,
+                                                     'server_link': settings.DISCORD_SERVER_INVITE_LINK,
+                                                     'next': reverse('setup_next_step')})
+        if request.user.setup_flags == 1:
+            return render(request, 'message_preference.html', {})
+
+        return
+

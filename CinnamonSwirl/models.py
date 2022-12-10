@@ -30,6 +30,9 @@ class DiscordUser(models.Model):
     mfa_enabled = models.BooleanField()
     discord_tag = models.CharField(max_length=50)
     last_login = models.DateTimeField()
+    bot_preference = models.BooleanField(default=False)
+    reminder_preference = models.BooleanField(default=False)
+    setup_flags = models.IntegerField(default=0)  # 0: New, 1: Invited/Joined Server, 2: Message preference, 3: Finished
     objects = DiscordUserOAuth2Manager()
 
     @staticmethod

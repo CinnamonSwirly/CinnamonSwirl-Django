@@ -31,6 +31,8 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 
 | **DISCORD_INVITE_LINK**: A link for users to invite the bot to a guild.
 
+| **DISCORD_SERVER_INVITE_LINK**: A link for users to join a common server with the bot.
+
 | **REGISTRATIONS_ENABLED**: When False, only existing users can use the platform. If a user deletes their data, they won't be able to log back in. Default is False.
 
 | **DJANGO_LOGGING_LEVEL**: Set to a level of logging in the python logging library, such as ERROR, WARNING, INFO, or DEBUG

@@ -73,9 +73,9 @@ class ReminderForm(forms.Form):
                               ),
                      Fieldset("Stop on this date:",
                               Field("schedule_end_date"),
-                              Field("schedule_end_time"))
+                              Field("schedule_end_time")
+                              )
                      )
-
         )
 
         self.fields['timezone'].choices = self.timezones
@@ -293,4 +293,20 @@ class LogoutButtonForm(forms.Form):
         self.helper.form_action = reverse('logout')
         self.helper.layout = Layout(
             Submit('submit', 'Logout')
+        )
+
+
+class MessagePreferenceForm(forms.Form):
+    """
+
+    """
+    preference = forms.ChoiceField(choices=("DM me the reminders", "Send reminders to a channel"))
+
+    def __init__(self, *args, **kwargs):
+        super(MessagePreferenceForm, self).__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.form_method = 'post'
+        self.helper.form_action = reverse('setup')
+        self.helper.layout = Layout(
+
         )
