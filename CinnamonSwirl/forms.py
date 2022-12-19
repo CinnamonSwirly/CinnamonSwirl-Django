@@ -304,7 +304,7 @@ class GuildJoinForm(forms.Form):
     | default through discord.
     """
     guild_join_confirmation = forms.BooleanField(label="I have joined the server and have Direct Messages from server "
-                                                      "members enabled", required=True)
+                                                       "members enabled", widget=forms.CheckboxInput(), required=True)
 
     def __init__(self, *args, **kwargs):
         super(GuildJoinForm, self).__init__(*args, **kwargs)
@@ -317,7 +317,6 @@ class GuildJoinForm(forms.Form):
                  f' and <a href="https://support.discord.com/hc/en-us/articles/217916488">Enable direct messages from'
                  f' server members</a></p><br>'),
             Field('guild_join_confirmation'),
-            HTML("<br>"),
             Submit('submit', 'Next')
         )
 
