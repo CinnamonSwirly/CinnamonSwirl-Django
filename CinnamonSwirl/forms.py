@@ -316,7 +316,8 @@ class GuildJoinForm(forms.Form):
             HTML(f'<p>Please <a href="{settings.DISCORD_SERVER_INVITE_LINK}">join the official server with the Bot</a>'
                  f' and <a href="https://support.discord.com/hc/en-us/articles/217916488">Enable direct messages from'
                  f' server members'),
-            Field('guild_preference'),
+            Field('guild_join_confirmation'),
+            HTML("<br"),
             Submit('submit', 'Next')
         )
 
