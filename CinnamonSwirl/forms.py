@@ -1,10 +1,11 @@
 from django import forms
 from crispy_forms.helper import FormHelper
-from crispy_forms.layout import Submit, Layout, Field, Fieldset
+from crispy_forms.layout import Submit, Layout, Field, Fieldset, HTML
 from django.urls import reverse
 from datetime import datetime
 from typing import Tuple
 from zoneinfo import ZoneInfo
+from App import settings
 
 
 class ReminderForm(forms.Form):
@@ -296,11 +297,37 @@ class LogoutButtonForm(forms.Form):
         )
 
 
+class GuildJoinForm(forms.Form):
+    """
+    | The first step to setting up a new user is getting the bot in a common guild with the user. They can choose to
+    | join the official guild or invite the bot to their own. Inviting the bot requires 'manage server' permission by
+    | default through discord.
+    """
+    guild_join_confirmation = forms.BooleanField(label="I have joined the server and have Direct Messages from server "
+                                                       "members enabled", widget=forms.CheckboxInput(), required=True)
+
+    def __init__(self, *args, **kwargs):
+        super(GuildJoinForm).__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.form_method = 'post'
+        self.helper.form_action = reverse('setup')
+        self.helper.layout = Layout(
+            HTML("<strong>First, the bot needs to see you somehow to message you.</strong>"),
+            HTML(f'<p>Please <a href="{settings.DISCORD_SERVER_INVITE_LINK}">join the official server with the Bot</a>'
+                 f' and <a href="https://support.discord.com/hc/en-us/articles/217916488">Enable direct messages from'
+                 f' server members'),
+            Field('guild_preference'),
+            Submit('submit', 'Next')
+        )
+
+
 class MessagePreferenceForm(forms.Form):
     """
-
+    | As part of the new user process, or if an existing user wants to reconfigure their settings, we will ask them
+    | for how they'd like to receive reminders. Valid options are via DM and via Channel.
     """
-    preference = forms.ChoiceField(choices=("DM me the reminders", "Send reminders to a channel"))
+    message_preference = forms.ChoiceField(choices=("Direct message me the reminders", "Send reminders to a channel"),
+                                           widget=forms.RadioSelect(), required=True)
 
     def __init__(self, *args, **kwargs):
         super(MessagePreferenceForm, self).__init__(*args, **kwargs)
@@ -308,5 +335,29 @@ class MessagePreferenceForm(forms.Form):
         self.helper.form_method = 'post'
         self.helper.form_action = reverse('setup')
         self.helper.layout = Layout(
+            HTML("<strong>Now, choose how you'll get messages.</strong>"),
+            HTML("The bot can directly message you or send you messages in a private channel just for you."),
+            Field('message_preference'),
+            Submit('submit', 'Next')
+        )
 
+
+class TestMessageForm(forms.Form):
+    """
+    | If a user's message_preference is True, they want use to message them their reminders in a channel. They use this
+    | to choose their ideal channel. Usually this is shown once to pick a guild - then again to choose a channel.
+    """
+    message_confirmation = forms.BooleanField(label="I got the message!", required=True, widget=forms.CheckboxInput())
+
+    def __init__(self, *args, **kwargs):
+        super(TestMessageForm, self).__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.form_method = 'post'
+        self.helper.form_action = reverse('setup')
+        self.helper.layout = Layout(
+            HTML("<strong>Finally, let's test a message.</strong>"),
+            HTML(f'<p>The bot should message you within a minute. If you do not see anything, '
+                 f'<a href="{reverse("setup")}">re-send the message.</a>'),
+            Field('message_confirmation'),
+            Submit('submit', 'Next')
         )
