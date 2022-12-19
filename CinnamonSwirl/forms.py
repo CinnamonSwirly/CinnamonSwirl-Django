@@ -315,9 +315,9 @@ class GuildJoinForm(forms.Form):
             HTML("<strong>First, the bot needs to see you somehow to message you.</strong>"),
             HTML(f'<p>Please <a href="{settings.DISCORD_SERVER_INVITE_LINK}">join the official server with the Bot</a>'
                  f' and <a href="https://support.discord.com/hc/en-us/articles/217916488">Enable direct messages from'
-                 f' server members</a><br>'),
+                 f' server members</a></p><br>'),
             Field('guild_join_confirmation'),
-            HTML("<br"),
+            HTML("<br>"),
             Submit('submit', 'Next')
         )
 
@@ -337,7 +337,7 @@ class MessagePreferenceForm(forms.Form):
         self.helper.form_action = reverse('setup')
         self.helper.layout = Layout(
             HTML("<strong>Now, choose how you'll get messages.</strong>"),
-            HTML("The bot can directly message you or send you messages in a private channel just for you."),
+            HTML("<p>The bot can directly message you or send you messages in a private channel just for you.</p><br>"),
             Field('message_preference'),
             Submit('submit', 'Next')
         )
@@ -358,7 +358,7 @@ class TestMessageForm(forms.Form):
         self.helper.layout = Layout(
             HTML("<strong>Finally, let's test a message.</strong>"),
             HTML(f'<p>The bot should message you within a minute. If you do not see anything, '
-                 f'<a href="{reverse("setup")}">re-send the message.</a>'),
+                 f'<a href="{reverse("setup")}">re-send the message.</a></p>'),
             Field('message_confirmation'),
             Submit('submit', 'Next')
         )
