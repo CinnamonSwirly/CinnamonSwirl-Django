@@ -1,6 +1,6 @@
 import discord
 import requests
-import models
+from CinnamonSwirl import models
 from App import settings
 from django.db.models import ObjectDoesNotExist
 
