@@ -307,7 +307,7 @@ class GuildJoinForm(forms.Form):
                                                        "members enabled", widget=forms.CheckboxInput(), required=True)
 
     def __init__(self, *args, **kwargs):
-        super(GuildJoinForm).__init__(*args, **kwargs)
+        super(GuildJoinForm, self).__init__(*args, **kwargs)
         self.helper = FormHelper()
         self.helper.form_method = 'post'
         self.helper.form_action = reverse('setup')
