@@ -199,16 +199,16 @@ class HomeView(View):
         and do a few account-related tasks such as logging out or deleting all their data.
         """
         if request.user.is_authenticated:
-            if not request.user.in_setup:
-                filtered_data = filters.RemindersFilter(request=request, queryset=models.Reminder.objects.all())
-                # Actual results of the filter is found as filtered_data.qs, not .data as that dumps the raw input
-                # of the filter.
-                table = tables.RemindersTable(data=filtered_data.qs, empty_text="You currently have no reminders!")
-                return render(request, 'get_reminders.html', {'table': table,
-                                                              'CreateButtonForm': forms.CreateButtonForm,
-                                                              'LogoutButtonForm': forms.LogoutButtonForm,
-                                                              'invite_link': settings.DISCORD_SERVER_INVITE_LINK})
-            return redirect(reverse('setup'))
+            # if not request.user.in_setup:
+            filtered_data = filters.RemindersFilter(request=request, queryset=models.Reminder.objects.all())
+            # Actual results of the filter is found as filtered_data.qs, not .data as that dumps the raw input
+            # of the filter.
+            table = tables.RemindersTable(data=filtered_data.qs, empty_text="You currently have no reminders!")
+            return render(request, 'get_reminders.html', {'table': table,
+                                                          'CreateButtonForm': forms.CreateButtonForm,
+                                                          'LogoutButtonForm': forms.LogoutButtonForm,
+                                                          'invite_link': settings.DISCORD_SERVER_INVITE_LINK})
+            # return redirect(reverse('setup'))
         return render(request, "index.html", {'auth_url': auth_url})
 
 
