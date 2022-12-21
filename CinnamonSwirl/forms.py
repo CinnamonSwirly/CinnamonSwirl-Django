@@ -305,7 +305,8 @@ class GuildJoinForm(forms.Form):
     """
     guild_join_confirmation = forms.ChoiceField(
         choices=[(True, "I have joined the server and have Direct Messages from server members enabled")],
-        required=True)
+        required=True,
+        widget=forms.CheckboxInput())
 
     def __init__(self, *args, **kwargs):
         super(GuildJoinForm, self).__init__(*args, **kwargs)
