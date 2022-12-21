@@ -338,9 +338,11 @@ class MessagePreferenceForm(forms.Form):
         self.helper.form_method = 'post'
         self.helper.form_action = reverse('setup')
         self.helper.layout = Layout(
-            HTML("<strong>Now, choose how you'll get messages.</strong>"),
-            HTML("<p>The bot can directly message you or send you messages in a private channel just for you.</p><br>"),
-            Field('message_preference'),
+            HTML("<strong>Now, choose how you'll get messages.</strong><br>"),
+            Fieldset(
+                "The bot can directly message you or send you messages in a private channel just for you.",
+                Field('message_preference')
+            ),
             Submit('submit', 'Next')
         )
 
