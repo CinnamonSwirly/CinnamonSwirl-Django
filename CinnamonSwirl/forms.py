@@ -310,7 +310,7 @@ class GuildJoinForm(forms.Form):
         self.helper = FormHelper()
         self.helper.form_method = 'post'
         self.helper.form_action = reverse('setup')
-        self.fields["joined"].initial = True
+        self.fields["guild_join_confirmation"].initial = True
         self.helper.layout = Layout(
             HTML("<strong>First, the bot needs to see you somehow to message you.</strong>"),
             HTML(f'<p>Please <a href="{settings.DISCORD_SERVER_INVITE_LINK}">join the official server with the Bot</a>'
