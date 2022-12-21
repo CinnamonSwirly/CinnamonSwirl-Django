@@ -303,11 +303,7 @@ class GuildJoinForm(forms.Form):
     | join the official guild or invite the bot to their own. Inviting the bot requires 'manage server' permission by
     | default through discord.
     """
-    guild_join_confirmation = forms.BooleanField(
-        required=True,
-        label="I have joined the server and have Direct Messages from server members enabled"
-    )
-    joined = forms.CharField(required=False, widget=forms.HiddenInput(attrs={'readonly': True}))
+    guild_join_confirmation = forms.CharField(required=False, widget=forms.HiddenInput(attrs={'readonly': True}))
 
     def __init__(self, *args, **kwargs):
         super(GuildJoinForm, self).__init__(*args, **kwargs)
@@ -320,7 +316,7 @@ class GuildJoinForm(forms.Form):
             HTML(f'<p>Please <a href="{settings.DISCORD_SERVER_INVITE_LINK}">join the official server with the Bot</a>'
                  f' and <a href="https://support.discord.com/hc/en-us/articles/217916488">Enable direct messages from'
                  f' server members</a></p><br>'),
-            Field('joined'),
+            HTML("<string>Click next when you have joined the guild and enabled direct messages.</strong>"),
             Field('guild_join_confirmation'),
             Submit('submit', 'Next')
         )
