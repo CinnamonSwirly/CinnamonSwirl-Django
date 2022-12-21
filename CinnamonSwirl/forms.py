@@ -328,8 +328,7 @@ class MessagePreferenceForm(forms.Form):
     | for how they'd like to receive reminders. Valid options are via DM and via Channel.
     """
     message_preference = forms.ChoiceField(
-        choices=[(False, "Direct message me the reminders"),
-                 (True, "Send reminders to a channel")],
+        choices=[],
         widget=forms.RadioSelect(), required=True)
 
     def __init__(self, *args, **kwargs):
@@ -337,8 +336,9 @@ class MessagePreferenceForm(forms.Form):
         self.helper = FormHelper()
         self.helper.form_method = 'post'
         self.helper.form_action = reverse('setup')
+        self.fields['message_preference'].choices = [(False, "Direct message me the reminders"),
+                                                     (True, "Send reminders to a channel")]
         self.helper.layout = Layout(
-            HTML("<strong>Now, choose how you'll get messages.</strong><br>"),
             Fieldset(
                 "The bot can directly message you or send you messages in a private channel just for you.",
                 Field('message_preference')
