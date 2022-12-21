@@ -1,8 +1,6 @@
 import discord
 import requests
-from CinnamonSwirl import models
 from App import settings
-from django.db.models import ObjectDoesNotExist
 
 
 def send_webhook_message(message):
@@ -18,10 +16,6 @@ def send_test_message_signal(discord_user_id):
 
 
 def send_channel_creation_signal(discord_user_id):
-    try:
-        guild = models.DiscordUser.objects.get(pk=discord_user_id).guild
-    except ObjectDoesNotExist:
-        return False
-    message = f"channel:{guild}"
+    message = f"channel:{discord_user_id}"
     send_webhook_message(message)
     return True
