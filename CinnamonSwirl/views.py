@@ -340,9 +340,9 @@ class Setup(View):
 
     @method_decorator(login_required(login_url="oath/discord_login"))
     def post(self, request):
-        if not request.user.setup_flags and request.POST.get('message_confirmation', None):  # User joined our guild
+        if not request.user.setup_flags and request.POST.get('guild_join_confirmation', None):  # User joined our guild
             return self.next(request)
-        if request.user.setup_flags == 1 and request.POST.get('message_confirmation', None):  # User chose a method
+        if request.user.setup_flags == 1 and request.POST.get('message_preference', None):  # User chose a method
             if request.POST.get("message_preference", None):
                 utils.send_channel_creation_signal(request.user.id)
                 self.save_preference(request, "message_preference")
