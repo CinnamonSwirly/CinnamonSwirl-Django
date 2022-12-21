@@ -333,7 +333,8 @@ class Setup(View):
                 return render(request, 'setup.html', {'SuppliedForm': forms.GuildJoinForm})
             if request.user.setup_flags == 1:  # User needs to choose how to get messages
                 return render(request, 'setup.html', {'SuppliedForm': forms.MessagePreferenceForm})
-            if request.user.setup_flags == 2:  # User needs to choose their channel or test a message
+            if request.user.setup_flags == 2:  # User needs to test a message
+                utils.send_test_message_signal(request.user.id)
                 return render(request, 'setup.html', {'SuppliedForm': forms.TestMessageForm})
 
         return HttpResponseBadRequest
