@@ -303,8 +303,9 @@ class GuildJoinForm(forms.Form):
     | join the official guild or invite the bot to their own. Inviting the bot requires 'manage server' permission by
     | default through discord.
     """
-    guild_join_confirmation = forms.ChoiceField(choices=("I have joined the server and have Direct Messages from server"
-                                                         " members enabled",), required=True)
+    guild_join_confirmation = forms.ChoiceField(
+        choices=[(True, "I have joined the server and have Direct Messages from server members enabled")],
+        required=True)
 
     def __init__(self, *args, **kwargs):
         super(GuildJoinForm, self).__init__(*args, **kwargs)
@@ -326,8 +327,10 @@ class MessagePreferenceForm(forms.Form):
     | As part of the new user process, or if an existing user wants to reconfigure their settings, we will ask them
     | for how they'd like to receive reminders. Valid options are via DM and via Channel.
     """
-    message_preference = forms.ChoiceField(choices=("Direct message me the reminders", "Send reminders to a channel"),
-                                           widget=forms.RadioSelect(), required=True)
+    message_preference = forms.ChoiceField(
+        choices=[(False, "Direct message me the reminders"),
+                 (True, "Send reminders to a channel")],
+        widget=forms.RadioSelect(), required=True)
 
     def __init__(self, *args, **kwargs):
         super(MessagePreferenceForm, self).__init__(*args, **kwargs)
@@ -347,8 +350,10 @@ class TestMessageForm(forms.Form):
     | If a user's message_preference is True, they want use to message them their reminders in a channel. They use this
     | to choose their ideal channel. Usually this is shown once to pick a guild - then again to choose a channel.
     """
-    message_confirmation = forms.ChoiceField(choices=("I got the message!",), required=True,
-                                             widget=forms.CheckboxInput())
+    message_confirmation = forms.ChoiceField(
+        choices=[(True, "I got the message!")],
+        required=True,
+        widget=forms.CheckboxInput())
 
     def __init__(self, *args, **kwargs):
         super(TestMessageForm, self).__init__(*args, **kwargs)
