@@ -9,5 +9,6 @@ urlpatterns = [
     path('oauth/discord_login', views.discord_login, name='discord_login'),
     path('oauth/redirect', views.discord_login_redirect, name='discord_login_redirect'),
     path('setup', views.Setup.as_view(), name='setup'),
-    path('forget', views.forget, name='forget')
+    path('forget', views.forget, name='forget'),
+    path('reset', views.reset, name='reset')
 ]

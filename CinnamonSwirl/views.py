@@ -238,6 +238,20 @@ def logout_user(request):
     return redirect('home')
 
 
+@login_required(login_url='oauth/discord_login')
+@require_http_methods(["GET"])
+def reset(request):
+    """
+    | Sets a user to re-do the first-time setup again.
+    | |login|
+    | |redirect| Home
+    """
+    request.user.in_setup = True
+    request.user.setup_flags = 0
+    request.user.save()
+    return redirect(reverse('home'))
+
+
 class ReminderView(View):
     # Where is PUT and DELETE? crispy forms doesn't support using PUT on forms, so we can only GET and POST.
     @method_decorator(login_required(login_url="oath/discord_login"))
