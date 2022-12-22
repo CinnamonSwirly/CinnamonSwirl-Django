@@ -14,13 +14,14 @@
 {% render_table table %}</br>
 <p align="center">New here? Not getting messages from the bot? Be sure you've
     <a href="{{ invite_link }}">
-        Joined the server
+        joined the server
     </a>
      and <a href="https://support.discord.com/hc/en-us/articles/217916488">
-        enabled direct messages for the server you chose!
+        enabled direct messages for the server!
     </a>
 </p></br>
 {% crispy LogoutButtonForm LogoutButtonForm.helper %}</br></br>
-<weak><p align="center"><a href="{% url 'forget' %}">Delete my data</a></p></weak>
+<weak><p align="center"><a href="{% url 'forget' %}">Redo Setup</a> |
+    <a href="{% url 'forget' %}">Delete my data</a></p></weak>
 </body>
 </html>
