@@ -10,16 +10,12 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.db.models import ObjectDoesNotExist
-from django.http import HttpResponseForbidden
-from django.shortcuts import redirect, reverse
-from django.shortcuts import render
+from django.http import HttpResponseForbidden, HttpResponseBadRequest
+from django.shortcuts import redirect, reverse, render
 from django.views.decorators.http import require_http_methods
 from requests import post as requests_post, get as requests_get
 
-from CinnamonSwirl import filters
-from CinnamonSwirl import forms
-from CinnamonSwirl import models
-from CinnamonSwirl import tables
+from CinnamonSwirl import filters, forms, models, tables, utils
 
 from App import settings
 
@@ -203,13 +199,16 @@ class HomeView(View):
         and do a few account-related tasks such as logging out or deleting all their data.
         """
         if request.user.is_authenticated:
-            filtered_data = filters.RemindersFilter(request=request, queryset=models.Reminder.objects.all())
-            # Actual results of the filter is found as filtered_data.qs, not .data as that dumps the raw input
-            # of the filter.
-            table = tables.RemindersTable(data=filtered_data.qs, empty_text="You currently have no reminders!")
-            return render(request, 'get_reminders.html', {'table': table, 'CreateButtonForm': forms.CreateButtonForm,
-                                                          'LogoutButtonForm': forms.LogoutButtonForm,
-                                                          'invite_link': settings.DISCORD_INVITE_LINK})
+            if not request.user.in_setup:
+                filtered_data = filters.RemindersFilter(request=request, queryset=models.Reminder.objects.all())
+                # Actual results of the filter is found as filtered_data.qs, not .data as that dumps the raw input
+                # of the filter.
+                table = tables.RemindersTable(data=filtered_data.qs, empty_text="You currently have no reminders!")
+                return render(request, 'get_reminders.html', {'table': table,
+                                                              'CreateButtonForm': forms.CreateButtonForm,
+                                                              'LogoutButtonForm': forms.LogoutButtonForm,
+                                                              'invite_link': settings.DISCORD_SERVER_INVITE_LINK})
+            return redirect(reverse('setup'))
         return render(request, "index.html", {'auth_url': auth_url})
 
 
@@ -237,6 +236,20 @@ def logout_user(request):
     """
     logout(request)
     return redirect('home')
+
+
+@login_required(login_url='oauth/discord_login')
+@require_http_methods(["GET"])
+def reset(request):
+    """
+    | Sets a user to re-do the first-time setup again.
+    | |login|
+    | |redirect| Home
+    """
+    request.user.in_setup = True
+    request.user.setup_flags = 0
+    request.user.save()
+    return redirect(reverse('home'))
 
 
 class ReminderView(View):
@@ -324,3 +337,45 @@ class ReminderView(View):
             message = 'An unhandled error occurred. Sorry.'
 
         return redirect("reminder", error=message, id=reminder_id)
+
+
+class Setup(View):
+    @method_decorator(login_required(login_url="oath/discord_login"))
+    def get(self, request):
+        if request.user.in_setup:
+            if not request.user.setup_flags:  # User needs to select to join our guild
+                return render(request, 'setup.html', {'SuppliedForm': forms.GuildJoinForm})
+            if request.user.setup_flags == 1:  # User needs to choose how to get messages
+                return render(request, 'setup.html', {'SuppliedForm': forms.MessagePreferenceForm})
+            if request.user.setup_flags == 2:  # User needs to test a message
+                utils.send_test_message_signal(request.user.id)
+                return render(request, 'setup.html', {'SuppliedForm': forms.TestMessageForm})
+
+        return HttpResponseBadRequest
+
+    @method_decorator(login_required(login_url="oath/discord_login"))
+    def post(self, request):
+        if not request.user.setup_flags and request.POST.get('guild_join_confirmation', None):  # User joined our guild
+            return self.next(request)
+        if request.user.setup_flags == 1 and request.POST.get('message_preference', None):  # User chose a method
+            if request.POST.get("message_preference", None):
+                utils.send_channel_creation_signal(request.user.id)
+                self.save_preference(request, "message_preference")
+            return self.next(request)
+        if request.user.setup_flags == 2 and request.POST.get('message_confirmation', None):  # User confirms test
+            request.user.in_setup = False
+            request.user.save()
+            return redirect(reverse('home'))
+        return redirect(reverse('setup'))
+
+    def next(self, request):
+        request.user.setup_flags += 1
+        request.user.save()
+        return self.get(request)
+
+    @staticmethod
+    def save_preference(request, attribute):
+        value = request.POST.get(attribute, None)
+        if value:
+            setattr(request.user, attribute, value)
+            request.user.save()

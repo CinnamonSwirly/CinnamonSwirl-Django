@@ -2,6 +2,7 @@ from django.db import models
 from django.urls import reverse
 from .managers import DiscordUserOAuth2Manager
 from django.utils.timezone import now
+import re
 
 
 class DiscordUser(models.Model):
@@ -30,6 +31,11 @@ class DiscordUser(models.Model):
     mfa_enabled = models.BooleanField()
     discord_tag = models.CharField(max_length=50)
     last_login = models.DateTimeField()
+    guild_preference = models.BooleanField(default=False)  # In the future, maybe users can invite the bot for TRUE?
+    message_preference = models.BooleanField(default=False)  # False: DM, True: Channel
+    setup_flags = models.IntegerField(default=0)  # 0: New, 1: Joined Server, 2: Message preference, 3: Tested OK
+    in_setup = models.BooleanField(default=True)
+    channel = models.BigIntegerField(null=True)
     objects = DiscordUserOAuth2Manager()
 
     @staticmethod

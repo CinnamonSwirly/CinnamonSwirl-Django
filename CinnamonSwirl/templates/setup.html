@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+{% load crispy_forms_tags %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Reminders by CinnamonSwirl</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" />
+</head>
+<body>
+<h3>Let's walk through some setup...</h3>
+<p>The simple of this is you'll set up and manage your reminders here on this site. Then, a bot will message you on
+Discord according to the schedules you set up here.</p><br>
+
+{% crispy SuppliedForm SuppliedForm.helper %}
+<br><br>
+<small>Changed your mind? It's okay,
+    <a href="{% url 'forget' %}">make me forget all about you</a> and it'll be like this never happened.</small>
+</body>
+</html>
