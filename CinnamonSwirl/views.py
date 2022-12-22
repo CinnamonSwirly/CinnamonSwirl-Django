@@ -347,9 +347,9 @@ class Setup(View):
             if request.POST.get("message_preference", None):
                 utils.send_channel_creation_signal(request.user.id)
                 self.save_preference(request, "message_preference")
+                utils.send_test_message_signal(request.user.id)
             return self.next(request)
         if request.user.setup_flags == 2 and request.POST.get('message_confirmation', None):  # User confirms test
-            utils.send_test_message_signal(request.user.id)
             request.user.in_setup = False
             request.user.save()
             return redirect(reverse('home'))
