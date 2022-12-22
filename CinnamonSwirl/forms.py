@@ -349,20 +349,19 @@ class TestMessageForm(forms.Form):
     | If a user's message_preference is True, they want use to message them their reminders in a channel. They use this
     | to choose their ideal channel. Usually this is shown once to pick a guild - then again to choose a channel.
     """
-    message_confirmation = forms.ChoiceField(
-        choices=[(True, "I got the message!")],
-        required=True,
-        widget=forms.CheckboxInput())
+    message_confirmation = forms.CharField(required=False, widget=forms.HiddenInput(attrs={'readonly': True}))
 
     def __init__(self, *args, **kwargs):
         super(TestMessageForm, self).__init__(*args, **kwargs)
         self.helper = FormHelper()
         self.helper.form_method = 'post'
         self.helper.form_action = reverse('setup')
+        self.fields['message_confirmation'].initial = True
         self.helper.layout = Layout(
             HTML("<strong>Finally, let's test a message.</strong>"),
             HTML(f'<p>The bot should message you within a minute. If you do not see anything, '
                  f'<a href="{reverse("setup")}">re-send the message.</a></p>'),
+            HTML('<p>Click next once you have seen the test message come through.</p>'),
             Field('message_confirmation'),
             Submit('submit', 'Next')
         )
